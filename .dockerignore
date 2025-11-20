@@ -1,0 +1,12 @@
+node_modules
+npm-debug.log
+Dockerfile
+Dockerfile.dev
+.git
+.gitignore
+.env
+apps/**/node_modules
+apps/**/.next
+apps/**/dist
+infra/terraform/.terraform
+infra/terraform/terraform.tfstate*

@@ -1,0 +1,37 @@
+# syntax=docker/dockerfile:1.6
+FROM node:20-bullseye AS base
+WORKDIR /app
+
+FROM base AS deps
+COPY apps/frontend/package*.json ./
+RUN npm install
+
+FROM deps AS build
+ARG NEXT_PUBLIC_API_BASE=http://localhost:4000
+ARG NEXT_PUBLIC_AWS_REGION=us-west-2
+ARG NEXT_PUBLIC_COGNITO_USER_POOL_ID=demo
+ARG NEXT_PUBLIC_COGNITO_CLIENT_ID=demo
+ENV NEXT_PUBLIC_API_BASE=$NEXT_PUBLIC_API_BASE \
+    NEXT_PUBLIC_AWS_REGION=$NEXT_PUBLIC_AWS_REGION \
+    NEXT_PUBLIC_COGNITO_USER_POOL_ID=$NEXT_PUBLIC_COGNITO_USER_POOL_ID \
+    NEXT_PUBLIC_COGNITO_CLIENT_ID=$NEXT_PUBLIC_COGNITO_CLIENT_ID
+COPY apps/frontend .
+RUN npm run build
+
+FROM node:20-bullseye-slim AS runner
+ARG NEXT_PUBLIC_API_BASE=http://localhost:4000
+ARG NEXT_PUBLIC_AWS_REGION=us-west-2
+ARG NEXT_PUBLIC_COGNITO_USER_POOL_ID=demo
+ARG NEXT_PUBLIC_COGNITO_CLIENT_ID=demo
+WORKDIR /app
+ENV NODE_ENV=production \
+    NEXT_PUBLIC_API_BASE=$NEXT_PUBLIC_API_BASE \
+    NEXT_PUBLIC_AWS_REGION=$NEXT_PUBLIC_AWS_REGION \
+    NEXT_PUBLIC_COGNITO_USER_POOL_ID=$NEXT_PUBLIC_COGNITO_USER_POOL_ID \
+    NEXT_PUBLIC_COGNITO_CLIENT_ID=$NEXT_PUBLIC_COGNITO_CLIENT_ID
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=build /app/.next ./.next
+COPY --from=build /app/package*.json ./
+COPY --from=build /app/public ./public
+EXPOSE 3000
+CMD ["npm", "run", "start"]

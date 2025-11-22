@@ -1,5 +1,6 @@
 import { JobMonitor } from '../../components/JobMonitor';
 import { PipelineSteps } from '../../components/PipelineSteps';
+import { HistoryPanel } from '../../components/HistoryPanel';
 import { TrainingConfigurator } from '../../components/TrainingConfigurator';
 
 const metrics = [
@@ -57,6 +58,8 @@ export default function DashboardPage() {
           <JobMonitor />
         </div>
       </section>
+
+      <HistoryPanel />
 
       <section className="glass-panel grid gap-6 rounded-3xl border border-white/5 p-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">

@@ -36,6 +36,12 @@ variable "public_subnet_cidr" {
   description = "CIDR for the public subnet"
 }
 
+variable "public_subnet_cidr_b" {
+  type        = string
+  description = "CIDR for the secondary public subnet"
+  default     = "10.20.2.0/24"
+}
+
 variable "availability_zone" {
   type        = string
   description = "Specific availability zone for subnet"
@@ -68,4 +74,60 @@ variable "remote_deploy_path" {
   type        = string
   description = "Path on the VM that will host the docker-compose deployment"
   default     = "/opt/deepfinery"
+}
+
+variable "docdb_username" {
+  type        = string
+  description = "Master username for DocumentDB"
+  default     = "deepfinery"
+}
+
+variable "docdb_password" {
+  type        = string
+  description = "Master password for DocumentDB"
+  sensitive   = true
+}
+
+variable "docdb_instance_class" {
+  type        = string
+  description = "Instance class for DocumentDB cluster"
+  default     = "db.t3.medium"
+}
+
+variable "docdb_instance_count" {
+  type        = number
+  description = "Number of DocumentDB instances"
+  default     = 1
+}
+
+variable "docdb_port" {
+  type        = number
+  description = "Port for DocumentDB"
+  default     = 27017
+}
+
+variable "cognito_domain_prefix" {
+  type        = string
+  description = "Prefix for Cognito hosted UI domain"
+}
+
+variable "google_client_id" {
+  type        = string
+  description = "Google OAuth client id"
+}
+
+variable "google_client_secret" {
+  type        = string
+  description = "Google OAuth client secret"
+  sensitive   = true
+}
+
+variable "oauth_callback_urls" {
+  type        = list(string)
+  description = "Allowed callback URLs for Cognito app client"
+}
+
+variable "oauth_logout_urls" {
+  type        = list(string)
+  description = "Allowed logout URLs for Cognito app client"
 }

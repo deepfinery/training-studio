@@ -15,10 +15,15 @@ export interface TrainingHyperparams {
 
 export interface TrainingJob {
   id: string;
+  userId: string;
+  name?: string;
   status: 'queued' | 'running' | 'succeeded' | 'failed';
   method: TrainingMethod;
   datasetUri: string;
+  datasetKey?: string;
   outputUri: string;
+  outputBucket?: string;
+  evaluationScore?: number;
   hyperparams: TrainingHyperparams;
   createdAt: string;
   updatedAt: string;
@@ -27,7 +32,10 @@ export interface TrainingJob {
 
 export interface TrainingJobRequest {
   datasetUri: string;
+  datasetKey?: string;
   method: TrainingMethod;
   hyperparams: TrainingHyperparams;
   outputUri?: string;
+  outputBucket?: string;
+  name?: string;
 }

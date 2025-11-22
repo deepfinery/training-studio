@@ -4,6 +4,7 @@ import {
   BookText,
   BrainCircuit,
   CreditCard,
+  FolderOpen,
   GaugeCircle,
   Layers3,
   LayoutDashboard,
@@ -31,6 +32,7 @@ export const primaryNav: NavSection[] = [
     items: [
       { title: 'Dashboard', href: '/', icon: LayoutDashboard },
       { title: 'Workflows', href: '/workflows', icon: BookText },
+      { title: 'Datasets', href: '/data', icon: FolderOpen },
       { title: 'Training Hub', href: '/training', icon: BrainCircuit, badge: 'live' },
       { title: 'Serve & Reinforce', href: '/deploy', icon: Rocket }
     ]

@@ -1,4 +1,5 @@
 import { JobMonitor } from '../../../components/JobMonitor';
+import { FileUploadPanel } from '../../../components/FileUploadPanel';
 import { TrainingConfigurator } from '../../../components/TrainingConfigurator';
 
 export default function TrainingPage() {
@@ -9,6 +10,7 @@ export default function TrainingPage() {
         <h1 className="text-3xl font-semibold text-white">Configure, dispatch, and review every job</h1>
         <p className="text-slate-300">Map ontologies to datasets, fine-tune on GPUs or Vertex, and stream job logs in one view.</p>
       </header>
+      <FileUploadPanel />
       <div className="grid gap-6 lg:grid-cols-12">
         <div className="lg:col-span-7">
           <TrainingConfigurator />

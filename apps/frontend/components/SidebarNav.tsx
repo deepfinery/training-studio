@@ -9,7 +9,7 @@ export function SidebarNav() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden w-72 flex-shrink-0 flex-col border-r border-white/5 bg-slate-950/80 px-6 py-8 text-sm text-slate-300 lg:flex">
+    <aside className="hidden w-72 flex-shrink-0 flex-col border-r border-white/5 bg-[#070b14]/90 px-6 py-8 text-sm text-slate-300 lg:flex">
       <div className="mb-10 space-y-1">
         <p className="text-xs uppercase tracking-[0.4em] text-brand-200">DeepFinery</p>
         <p className="text-2xl font-semibold text-white">Training Studio</p>

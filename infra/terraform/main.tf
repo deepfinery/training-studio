@@ -19,6 +19,7 @@ locals {
     Managed = "terraform"
   }
   availability_zone = var.availability_zone != "" ? var.availability_zone : "${var.aws_region}a"
+  availability_zone_b = var.availability_zone != "" ? var.availability_zone : "${var.aws_region}b"
 }
 
 resource "aws_s3_bucket" "data" {
@@ -66,13 +67,42 @@ resource "aws_cognito_user_pool_client" "this" {
   user_pool_id                         = aws_cognito_user_pool.this.id
   generate_secret                      = false
   prevent_user_existence_errors        = "ENABLED"
-  allowed_oauth_flows_user_pool_client = false
+  allowed_oauth_flows_user_pool_client = true
+  allowed_oauth_flows                  = ["code"]
+  supported_identity_providers         = ["COGNITO", "Google"]
+  callback_urls                        = var.oauth_callback_urls
+  logout_urls                          = var.oauth_logout_urls
+  allowed_oauth_scopes                 = ["email", "openid", "profile"]
   explicit_auth_flows = [
     "ALLOW_REFRESH_TOKEN_AUTH",
     "ALLOW_USER_PASSWORD_AUTH",
     "ALLOW_USER_SRP_AUTH"
   ]
+  depends_on = [aws_cognito_identity_provider.google]
   tags = local.tags
+}
+
+resource "aws_cognito_identity_provider" "google" {
+  user_pool_id  = aws_cognito_user_pool.this.id
+  provider_name = "Google"
+  provider_type = "Google"
+
+  provider_details = {
+    authorize_scopes = "email profile openid"
+    client_id        = var.google_client_id
+    client_secret    = var.google_client_secret
+  }
+
+  attribute_mapping = {
+    email    = "email"
+    username = "sub"
+    name     = "name"
+  }
+}
+
+resource "aws_cognito_user_pool_domain" "this" {
+  domain       = var.cognito_domain_prefix
+  user_pool_id = aws_cognito_user_pool.this.id
 }
 
 resource "aws_vpc" "this" {
@@ -87,6 +117,14 @@ resource "aws_subnet" "public" {
   cidr_block              = var.public_subnet_cidr
   map_public_ip_on_launch = true
   availability_zone       = local.availability_zone
+  tags = local.tags
+}
+
+resource "aws_subnet" "public_b" {
+  vpc_id                  = aws_vpc.this.id
+  cidr_block              = var.public_subnet_cidr_b
+  map_public_ip_on_launch = true
+  availability_zone       = local.availability_zone_b
   tags = local.tags
 }
 
@@ -108,6 +146,11 @@ resource "aws_route_table" "public" {
 
 resource "aws_route_table_association" "public" {
   subnet_id      = aws_subnet.public.id
+  route_table_id = aws_route_table.public.id
+}
+
+resource "aws_route_table_association" "public_b" {
+  subnet_id      = aws_subnet.public_b.id
   route_table_id = aws_route_table.public.id
 }
 
@@ -151,6 +194,29 @@ resource "aws_security_group" "app" {
   tags = local.tags
 }
 
+resource "aws_security_group" "docdb" {
+  name        = "${var.project}-docdb-sg"
+  description = "Permit DocumentDB traffic from app hosts"
+  vpc_id      = aws_vpc.this.id
+
+  ingress {
+    description     = "DocumentDB"
+    from_port       = var.docdb_port
+    to_port         = var.docdb_port
+    protocol        = "tcp"
+    security_groups = [aws_security_group.app.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = local.tags
+}
+
 data "aws_ami" "ubuntu" {
   owners      = ["099720109477"]
   most_recent = true
@@ -164,6 +230,41 @@ data "aws_ami" "ubuntu" {
     name   = "virtualization-type"
     values = ["hvm"]
   }
+}
+
+resource "aws_docdb_subnet_group" "this" {
+  name       = "${var.project}-docdb-subnets"
+  subnet_ids = [aws_subnet.public.id, aws_subnet.public_b.id]
+  tags       = local.tags
+}
+
+resource "aws_docdb_cluster" "this" {
+  cluster_identifier              = "${var.project}-docdb"
+  engine                          = "docdb"
+  engine_version                  = "5.0"
+  master_username                 = var.docdb_username
+  master_password                 = var.docdb_password
+  port                            = var.docdb_port
+  db_subnet_group_name            = aws_docdb_subnet_group.this.name
+  vpc_security_group_ids          = [aws_security_group.docdb.id]
+  backup_retention_period         = 1
+  preferred_backup_window         = "03:00-05:00"
+  preferred_maintenance_window    = "sun:06:00-sun:07:00"
+  storage_encrypted               = true
+  deletion_protection             = false
+  apply_immediately               = true
+  skip_final_snapshot             = true
+  enabled_cloudwatch_logs_exports = ["audit"]
+  tags                            = local.tags
+}
+
+resource "aws_docdb_cluster_instance" "this" {
+  count              = var.docdb_instance_count
+  identifier         = "${var.project}-docdb-${count.index}"
+  cluster_identifier = aws_docdb_cluster.this.id
+  instance_class     = var.docdb_instance_class
+  apply_immediately  = true
+  tags               = local.tags
 }
 
 resource "aws_key_pair" "deployer" {

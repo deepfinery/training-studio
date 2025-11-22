@@ -23,11 +23,42 @@ DeepFinery is a Business Logic Refinery that turns human-readable rules into det
 - Usage management (multi-tenant) with Cognito auth, billing hooks, and seat limits.
 
 ## Getting Started
-1. Install dependencies (Node 20+ recommended).
-2. From the repository root run `npm install` to install workspace dependencies.
-3. Backend: `npm run dev:backend` starts the Express server with hot reload.
-4. Frontend: `npm run dev:frontend` starts the Next.js dashboard on `http://localhost:3000`.
-5. Create a `.env` file in each app (see `.env.example` placeholders) before connecting to AWS / Cognito.
+Follow the quick-starts below to run locally, with Docker, or with Terraform-managed AWS infra.
+
+### Local (no containers)
+1) Install dependencies (Node 20+): `npm install`
+2) Copy and fill envs  
+   - Backend: `cp apps/backend/.env.example apps/backend/.env`  
+   - Frontend: `cp apps/frontend/.env.example apps/frontend/.env`  
+   Populate Cognito (pool/client/domain/redirect), S3 buckets, and DocumentDB URI. For dev without Cognito, leave `ALLOW_DEV_AUTH=true` in backend `.env`.
+3) Run dev servers  
+   - Backend: `npm run dev:backend` (port 4000)  
+   - Frontend: `npm run dev:frontend` (port 3000, uses `NEXT_PUBLIC_API_BASE`)
+4) Production builds  
+   - Backend: `npm run build:backend` then `node apps/backend/dist/server.js`  
+   - Frontend: `npm run build:frontend` then `npm run start --prefix apps/frontend`
+
+### Docker Compose
+1) Ensure root `.env` exists (you can reuse backend/front env values here). Include AWS region, S3 buckets, Cognito IDs/domain/redirect, DocumentDB URI/CA path, `ALLOW_DEV_AUTH` if needed.  
+2) Build & run: `docker compose up --build`  
+   - Frontend: http://localhost:3000  
+   - Backend: http://localhost:4000
+3) Build images individually (optional)  
+   - Backend: `docker build -f apps/backend/Dockerfile -t training-backend .`  
+   - Frontend: `docker build -f apps/frontend/Dockerfile -t training-frontend .`
+
+### Infrastructure (Terraform on AWS)
+1) Copy vars: `cp infra/terraform/terraform.tfvars.example infra/terraform/terraform.tfvars`
+2) Edit `terraform.tfvars` with:
+   - `aws_region`, `aws_profile`
+   - `s3_data_bucket`, `s3_model_bucket`
+   - `cognito_domain_prefix`, `oauth_callback_urls`, `oauth_logout_urls`
+   - Google OAuth client id/secret for SSO
+   - DocumentDB username/password, instance class/count, port
+   - VPC/subnet CIDRs, SSH key name/path, instance type, remote deploy path
+3) Apply: from `infra/terraform` run `terraform init && terraform apply`
+4) Use outputs to populate envs: `COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID`, `COGNITO_DOMAIN`, `COGNITO_REDIRECT_URI`, `S3_DATA_BUCKET`, `S3_MODEL_BUCKET`, `DOCUMENTDB_URI`, `DOCUMENTDB_TLS_CA_FILE`, etc.
+5) (Optional) Deploy app to a host: copy repo to the provisioned VM and run `docker compose up -d --build` with the filled `.env`.
 
 ## Scripts
 | Script | Description |
@@ -39,10 +70,10 @@ DeepFinery is a Business Logic Refinery that turns human-readable rules into det
 | `npm run lint` | Run linting across workspaces (TBD). |
 
 ## Environment Files
-- `.env` (root) holds shared values for Docker/infra (`AWS_REGION`, `S3_DATA_BUCKET`, `COGNITO_USER_POOL_ID`, etc.).
-- `apps/backend/.env.example` documents runtime secrets for the API server.
-- `apps/frontend/.env.example` surfaces `NEXT_PUBLIC_*` vars the dashboard consumes at build-time.
-Copy these templates, fill in Cognito + S3 identifiers (or rely on Terraform outputs), and never commit your actual `.env` files.
+- `.env` (root, optional) holds shared values for Docker/infra (`AWS_REGION`, `S3_DATA_BUCKET`, `COGNITO_USER_POOL_ID`, `COGNITO_DOMAIN`, `DOCUMENTDB_URI`, etc.).
+- `apps/backend/.env.example` documents runtime secrets for the API server (`ALLOW_DEV_AUTH` enables auth bypass locally).
+- `apps/frontend/.env.example` surfaces `NEXT_PUBLIC_*` vars the dashboard consumes at build-time (Cognito domain/redirect for hosted UI/Google SSO).
+Copy these templates, fill Cognito + S3 + DocumentDB identifiers (or rely on Terraform outputs), and never commit your actual `.env` files.
 
 ## Containerization
 - `apps/backend/Dockerfile` packages the Express API (builds TypeScript + prunes dev deps).

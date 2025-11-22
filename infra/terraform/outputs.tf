@@ -18,7 +18,23 @@ output "cognito_client_id" {
   description = "App client ID"
 }
 
+output "cognito_domain" {
+  value       = aws_cognito_user_pool_domain.this.domain
+  description = "Hosted UI domain"
+}
+
 output "app_public_ip" {
   value       = aws_instance.app.public_ip
   description = "Public IP for the Ubuntu host"
+}
+
+output "docdb_endpoint" {
+  value       = aws_docdb_cluster.this.endpoint
+  description = "DocumentDB endpoint"
+}
+
+output "docdb_connection_uri" {
+  value       = "mongodb://${var.docdb_username}:${var.docdb_password}@${aws_docdb_cluster.this.endpoint}:${var.docdb_port}/?tls=true&replicaSet=rs0&readPreference=secondaryPreferred&retryWrites=false"
+  description = "Connection string for the DocumentDB cluster"
+  sensitive   = true
 }

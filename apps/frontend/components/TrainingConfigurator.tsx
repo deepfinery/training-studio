@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { createJob, TrainingMethod } from '../lib/api';
+import { useEffect, useMemo, useState } from 'react';
+import useSWR from 'swr';
+import { createJob, fetchFiles, FileRecord, TrainingMethod } from '../lib/api';
 
 const methodOptions: { label: string; value: TrainingMethod; description: string }[] = [
   { label: 'QLoRA', value: 'qlora', description: '4-bit adapters for efficient GPUs' },
@@ -14,8 +15,22 @@ export function TrainingConfigurator() {
   const [method, setMethod] = useState<TrainingMethod>('qlora');
   const [layers, setLayers] = useState(4);
   const [baseModel, setBaseModel] = useState('meta-llama/Llama-3.2-3B-Instruct');
+  const [datasetUri, setDatasetUri] = useState('s3://deepfinery-datasets/example.jsonl');
+  const [datasetKey, setDatasetKey] = useState<string | undefined>();
+  const [jobName, setJobName] = useState('LoRA refinement');
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const { data: files } = useSWR<FileRecord[]>('ingestion-files', () => fetchFiles('ingestion'), {
+    refreshInterval: 15000
+  });
+
+  useEffect(() => {
+    if (files && files.length > 0 && !datasetKey) {
+      const latest = files[0];
+      setDatasetKey(latest.key);
+      setDatasetUri(`s3://${latest.bucket}/${latest.key}`);
+    }
+  }, [files, datasetKey]);
 
   const layerAnimation = useMemo(() => {
     const blocks = [];
@@ -36,7 +51,9 @@ export function TrainingConfigurator() {
     setStatus('Submitting job...');
     try {
       await createJob({
-        datasetUri: 's3://deepfinery-datasets/example.jsonl',
+        datasetUri,
+        datasetKey,
+        name: jobName,
         method,
         hyperparams: {
           baseModel,
@@ -73,6 +90,45 @@ export function TrainingConfigurator() {
       </div>
 
       <div className="grid gap-4">
+        <label className="text-sm text-slate-200">
+          Job name
+          <input
+            type="text"
+            value={jobName}
+            onChange={event => setJobName(event.target.value)}
+            className="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/40 px-3 py-2 text-white shadow-inner"
+          />
+        </label>
+        <label className="text-sm text-slate-200">
+          Dataset location
+          <input
+            type="text"
+            value={datasetUri}
+            onChange={event => setDatasetUri(event.target.value)}
+            className="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/40 px-3 py-2 text-white shadow-inner"
+          />
+        </label>
+        {files && files.length > 0 && (
+          <div className="text-sm text-slate-300">
+            <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Recent uploads</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {files.slice(0, 3).map(file => (
+                <button
+                  key={file.key}
+                  onClick={() => {
+                    setDatasetKey(file.key);
+                    setDatasetUri(`s3://${file.bucket}/${file.key}`);
+                  }}
+                  className={`rounded-full border px-3 py-1 text-xs transition ${
+                    datasetKey === file.key ? 'border-brand-400 text-brand-100' : 'border-white/10 text-slate-200'
+                  }`}
+                >
+                  {file.originalName}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <label className="text-sm text-slate-200">
           Base model
           <select

@@ -33,7 +33,7 @@ Follow the quick-starts below to run locally or with Docker. Infrastructure (Cog
    Use the values from your provisioned AWS resources: Cognito user pool/client with the custom domain (e.g., `https://auth.studio.deepfinery.com`), redirect/logout URIs, S3 buckets, and DocumentDB URI/CA. For dev without Cognito, leave `ALLOW_DEV_AUTH=true` in backend `.env`.
 3) Run dev servers  
    - Backend: `npm run dev:backend` (port 4000)  
-   - Frontend: `npm run dev:frontend` (port 3000, uses `NEXT_PUBLIC_API_BASE`)
+   - Frontend: `npm run dev:frontend` (port 3000, proxies `/api/*` to the backend defined by `BACKEND_INTERNAL_BASE`)
 4) Production builds  
    - Backend: `npm run build:backend` then `node apps/backend/dist/server.js`  
    - Frontend: `npm run build:frontend` then `npm run start --prefix apps/frontend`
@@ -89,9 +89,9 @@ DEPLOYMENT_SSH_PORT=22
 REMOTE_DEPLOY_PATH=/opt/deepfinery
 ```
 2) Backend env: copy the same values into `apps/backend/.env` (see `apps/backend/.env.example`) and add any app-specific secrets like `HUGGINGFACE_API_TOKEN`.  
-3) Frontend env: copy the Cognito + API base into `apps/frontend/.env` (see `apps/frontend/.env.example`), e.g.:
+3) Frontend env: copy the Cognito settings plus the internal backend base (used by Next.js rewrites) into `apps/frontend/.env` (see `apps/frontend/.env.example`), e.g.:
 ```
-NEXT_PUBLIC_API_BASE=https://44.215.126.72:4000
+BACKEND_INTERNAL_BASE=http://backend:4000
 NEXT_PUBLIC_AWS_REGION=us-east-1
 NEXT_PUBLIC_COGNITO_USER_POOL_ID=us-east-1_ta6ULSKzB
 NEXT_PUBLIC_COGNITO_CLIENT_ID=2fgl95ajnvgq8k54gka6ei8e2s
@@ -99,6 +99,7 @@ NEXT_PUBLIC_COGNITO_DOMAIN=https://auth.studio.deepfinery.com
 NEXT_PUBLIC_COGNITO_REDIRECT_URI=https://auth.studio.deepfinery.com/sso/callback
 NEXT_PUBLIC_GOOGLE_IDP=Google
 ```
+Leave `NEXT_PUBLIC_API_BASE` empty to reuse the same origin; set it only if browsers must talk to a public API host directly.
 4) Deploy: `./scripts/deploy.sh` (rsyncs to `44.215.126.72` and runs `docker compose up -d --build`).  
 5) Verify: Backend at `http://44.215.126.72:4000`, Frontend at `http://44.215.126.72:3000`. Update the protocol/port if you terminate TLS elsewhere.
 
@@ -114,13 +115,13 @@ NEXT_PUBLIC_GOOGLE_IDP=Google
 ## Environment Files
 - `.env` (root, optional) holds shared values for Docker/infra (`AWS_REGION`, `S3_DATA_BUCKET`, `COGNITO_USER_POOL_ID`, `COGNITO_DOMAIN`, `DOCUMENTDB_URI`, etc.).
 - `apps/backend/.env.example` documents runtime secrets for the API server (`ALLOW_DEV_AUTH` enables auth bypass locally).
-- `apps/frontend/.env.example` surfaces `NEXT_PUBLIC_*` vars the dashboard consumes at build-time (Cognito domain/redirect for hosted UI/Google SSO).
+- `apps/frontend/.env.example` surfaces `BACKEND_INTERNAL_BASE` (for server-to-server rewrites) and the `NEXT_PUBLIC_*` vars the dashboard consumes at build-time (Cognito domain/redirect for hosted UI/Google SSO).
 Copy these templates, fill Cognito + S3 + DocumentDB identifiers (or rely on Terraform outputs), and never commit your actual `.env` files.
 
 ## Containerization
 - `apps/backend/Dockerfile` packages the Express API (builds TypeScript + prunes dev deps).
 - `apps/frontend/Dockerfile` builds the Next.js dashboard with configurable `NEXT_PUBLIC_*` args.
-- `docker-compose.yml` runs both containers locally (`docker compose up --build`) with env wiring so the frontend hits `http://backend:4000`.
+- `docker-compose.yml` runs both containers locally (`docker compose up --build`) with env wiring so the frontend proxies `/api/*` requests to the `backend` service.
 
 ## Deploying to an existing host
 1) Prereqs on the target host: Docker + Docker Compose installed, the TLS CA for DocumentDB available if needed, and security groups/firewall opened for ports 3000/4000 (or your chosen overrides).  

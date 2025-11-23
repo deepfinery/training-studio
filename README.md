@@ -23,14 +23,14 @@ DeepFinery is a Business Logic Refinery that turns human-readable rules into det
 - Usage management (multi-tenant) with Cognito auth, billing hooks, and seat limits.
 
 ## Getting Started
-Follow the quick-starts below to run locally, with Docker, or with Terraform-managed AWS infra.
+Follow the quick-starts below to run locally or with Docker. Infrastructure (Cognito, S3, networking, certificates, etc.) now lives in a separate repo—pull the necessary values from that stack.
 
 ### Local (no containers)
-1) Install dependencies (Node 20+): `npm install`
+1) Install dependencies (Node 20+): `npm install`  
 2) Copy and fill envs  
    - Backend: `cp apps/backend/.env.example apps/backend/.env`  
    - Frontend: `cp apps/frontend/.env.example apps/frontend/.env`  
-   Populate Cognito (pool/client/domain/redirect), S3 buckets, and DocumentDB URI. For dev without Cognito, leave `ALLOW_DEV_AUTH=true` in backend `.env`.
+   Use the values from your provisioned AWS resources: Cognito user pool/client with the custom domain (e.g., `https://auth.studio.deepfinery.com`), redirect/logout URIs, S3 buckets, and DocumentDB URI/CA. For dev without Cognito, leave `ALLOW_DEV_AUTH=true` in backend `.env`.
 3) Run dev servers  
    - Backend: `npm run dev:backend` (port 4000)  
    - Frontend: `npm run dev:frontend` (port 3000, uses `NEXT_PUBLIC_API_BASE`)
@@ -39,7 +39,7 @@ Follow the quick-starts below to run locally, with Docker, or with Terraform-man
    - Frontend: `npm run build:frontend` then `npm run start --prefix apps/frontend`
 
 ### Docker Compose
-1) Ensure root `.env` exists (you can reuse backend/front env values here). Include AWS region, S3 buckets, Cognito IDs/domain/redirect, DocumentDB URI/CA path, `ALLOW_DEV_AUTH` if needed.  
+1) Ensure root `.env` exists (you can reuse backend/front env values here). Include AWS region, S3 buckets, Cognito IDs/custom domain/redirect, DocumentDB URI/CA path, `ALLOW_DEV_AUTH` if needed.  
 2) Build & run: `docker compose up --build`  
    - Frontend: http://localhost:3000  
    - Backend: http://localhost:4000
@@ -47,18 +47,60 @@ Follow the quick-starts below to run locally, with Docker, or with Terraform-man
    - Backend: `docker build -f apps/backend/Dockerfile -t training-backend .`  
    - Frontend: `docker build -f apps/frontend/Dockerfile -t training-frontend .`
 
-### Infrastructure (Terraform on AWS)
-1) Copy vars: `cp infra/terraform/terraform.tfvars.example infra/terraform/terraform.tfvars`
-2) Edit `terraform.tfvars` with:
-   - `aws_region`, `aws_profile`
-   - `s3_data_bucket`, `s3_model_bucket`
-   - `cognito_domain_prefix`, `oauth_callback_urls`, `oauth_logout_urls`
-   - Google OAuth client id/secret for SSO
-   - DocumentDB username/password, instance class/count, port
-   - VPC/subnet CIDRs, SSH key name/path, instance type, remote deploy path
-3) Apply: from `infra/terraform` run `terraform init && terraform apply`
-4) Use outputs to populate envs: `COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID`, `COGNITO_DOMAIN`, `COGNITO_REDIRECT_URI`, `S3_DATA_BUCKET`, `S3_MODEL_BUCKET`, `DOCUMENTDB_URI`, `DOCUMENTDB_TLS_CA_FILE`, etc.
-5) (Optional) Deploy app to a host: copy repo to the provisioned VM and run `docker compose up -d --build` with the filled `.env`.
+### Infrastructure
+Infrastructure code now lives outside this repo. The application expects that you already have:
+- Cognito User Pool + client + custom domain (e.g., `auth.studio.deepfinery.com`) and matching OAuth callback/logout URLs.
+- S3 buckets for datasets and trained models.
+- DocumentDB (or Mongo-compatible) database with TLS CA.
+- A host/VM with Docker + Docker Compose reachable via SSH where the app will run.
+
+Keep the outputs from your infra repo handy to populate the `.env` files here.
+
+### Using your Terraform outputs (what to do now)
+You already have the infra outputs:
+```
+app_public_ip = 44.215.126.72
+cognito_client_id = 2fgl95ajnvgq8k54gka6ei8e2s
+cognito_domain = auth.studio.deepfinery.com
+cognito_user_pool_id = us-east-1_ta6ULSKzB
+docdb_connection_uri = <your_URI>
+s3_data_bucket = deepfinery-training-data-123456
+s3_model_bucket = deepfinery-trained-models-123456
+```
+
+1) Root `.env` (used by Docker Compose + deploy script). Create `.env` with:
+```
+AWS_REGION=us-east-1
+S3_DATA_BUCKET=deepfinery-training-data-123456
+S3_MODEL_BUCKET=deepfinery-trained-models-123456
+COGNITO_USER_POOL_ID=us-east-1_ta6ULSKzB
+COGNITO_CLIENT_ID=2fgl95ajnvgq8k54gka6ei8e2s
+COGNITO_DOMAIN=https://auth.studio.deepfinery.com
+COGNITO_REDIRECT_URI=https://auth.studio.deepfinery.com/sso/callback
+COGNITO_GOOGLE_IDP=Google
+DOCUMENTDB_URI=<docdb_connection_uri>
+DOCUMENTDB_DB=training-studio
+DOCUMENTDB_TLS_CA_FILE=/etc/ssl/certs/rds-ca-bundle.pem
+# Deployment target
+DEPLOYMENT_HOST=44.215.126.72
+DEPLOYMENT_SSH_PRIVATE_KEY=/path/to/your/key.pem
+DEPLOYMENT_SSH_USER=ubuntu
+DEPLOYMENT_SSH_PORT=22
+REMOTE_DEPLOY_PATH=/opt/deepfinery
+```
+2) Backend env: copy the same values into `apps/backend/.env` (see `apps/backend/.env.example`) and add any app-specific secrets like `HUGGINGFACE_API_TOKEN`.  
+3) Frontend env: copy the Cognito + API base into `apps/frontend/.env` (see `apps/frontend/.env.example`), e.g.:
+```
+NEXT_PUBLIC_API_BASE=https://44.215.126.72:4000
+NEXT_PUBLIC_AWS_REGION=us-east-1
+NEXT_PUBLIC_COGNITO_USER_POOL_ID=us-east-1_ta6ULSKzB
+NEXT_PUBLIC_COGNITO_CLIENT_ID=2fgl95ajnvgq8k54gka6ei8e2s
+NEXT_PUBLIC_COGNITO_DOMAIN=https://auth.studio.deepfinery.com
+NEXT_PUBLIC_COGNITO_REDIRECT_URI=https://auth.studio.deepfinery.com/sso/callback
+NEXT_PUBLIC_GOOGLE_IDP=Google
+```
+4) Deploy: `./scripts/deploy.sh` (rsyncs to `44.215.126.72` and runs `docker compose up -d --build`).  
+5) Verify: Backend at `http://44.215.126.72:4000`, Frontend at `http://44.215.126.72:3000`. Update the protocol/port if you terminate TLS elsewhere.
 
 ## Scripts
 | Script | Description |
@@ -80,13 +122,14 @@ Copy these templates, fill Cognito + S3 + DocumentDB identifiers (or rely on Ter
 - `apps/frontend/Dockerfile` builds the Next.js dashboard with configurable `NEXT_PUBLIC_*` args.
 - `docker-compose.yml` runs both containers locally (`docker compose up --build`) with env wiring so the frontend hits `http://backend:4000`.
 
-## Deploying to AWS
-1. Customize `infra/terraform/terraform.tfvars` (buckets, region, SSH key, etc.).
-2. Ensure `.env` contains `DEPLOYMENT_SSH_PRIVATE_KEY` (path to the key that matches `ssh_key_name`), `REMOTE_DEPLOY_PATH`, and AWS credentials/profile.
-3. Execute `scripts/deploy.sh`. The script:
-   - Initializes/applies the Terraform stack (S3 buckets, Cognito pool/client, VPC, security group, Ubuntu VM).
-   - Streams the Terraform outputs so you can update `.env` with real IDs.
-   - Rsyncs the repo to the VM and runs `docker compose up -d --build`, exposing the backend on port `4000` and the dashboard on port `3000`.
+## Deploying to an existing host
+1) Prereqs on the target host: Docker + Docker Compose installed, the TLS CA for DocumentDB available if needed, and security groups/firewall opened for ports 3000/4000 (or your chosen overrides).  
+2) In this repo, create/update `.env` with your AWS values (region, S3 buckets, Cognito pool/client, custom Cognito domain such as `https://auth.studio.deepfinery.com`, redirect/logout URIs, DocumentDB URI/CA, AWS credentials) plus deployment settings:  
+   - `DEPLOYMENT_HOST` (public IP or hostname of the VM)  
+   - `DEPLOYMENT_SSH_PRIVATE_KEY` (path to the private key that matches the host)  
+   - Optional: `DEPLOYMENT_SSH_USER` (default `ubuntu`), `DEPLOYMENT_SSH_PORT` (default `22`), `REMOTE_DEPLOY_PATH` (default `/opt/deepfinery`)  
+3) Run `./scripts/deploy.sh`. The script rsyncs the repo (including `.env`) to the host and runs `docker compose up -d --build` there.  
+4) Access the services: Backend `http://<DEPLOYMENT_HOST>:4000`, Frontend `http://<DEPLOYMENT_HOST>:3000`.
 
 ## Environment Variables
 - `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`: Required for S3 dataset storage and EKS orchestration.

@@ -65,7 +65,7 @@ export default function DashboardPage() {
         <div className="lg:col-span-2 space-y-4">
           <div>
             <p className="text-sm uppercase tracking-[0.35em] text-brand-200">Activity</p>
-            <h2 className="text-2xl font-semibold text-white">What's happening</h2>
+            <h2 className="text-2xl font-semibold text-white">What&apos;s happening</h2>
           </div>
           <ul className="space-y-4">
             {activity.map(item => (

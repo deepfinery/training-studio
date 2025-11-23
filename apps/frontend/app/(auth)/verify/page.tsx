@@ -2,11 +2,32 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { ReactNode, Suspense, useState } from 'react';
 import { AuthCard } from '../../../components/AuthCard';
 import { verifyAccount } from '../../../lib/api';
 
-export default function VerifyAccountPage() {
+const cardCopy = {
+  title: 'Verify your email',
+  subtitle: 'Enter the 6-digit code we just sent you to finish activating your workspace.',
+  footer: (
+    <p>
+      Already verified?{' '}
+      <Link href="/login" className="text-brand-200 hover:text-brand-100">
+        Sign in
+      </Link>
+    </p>
+  )
+};
+
+function CardShell({ children }: { children: ReactNode }) {
+  return (
+    <AuthCard title={cardCopy.title} subtitle={cardCopy.subtitle} footer={cardCopy.footer}>
+      {children}
+    </AuthCard>
+  );
+}
+
+function VerifyAccountContent() {
   const params = useSearchParams();
   const router = useRouter();
   const [email, setEmail] = useState(params.get('email') ?? '');
@@ -30,18 +51,7 @@ export default function VerifyAccountPage() {
   };
 
   return (
-    <AuthCard
-      title="Verify your email"
-      subtitle="Enter the 6-digit code we just sent you to finish activating your workspace."
-      footer={
-        <p>
-          Already verified?{' '}
-          <Link href="/login" className="text-brand-200 hover:text-brand-100">
-            Sign in
-          </Link>
-        </p>
-      }
-    >
+    <CardShell>
       <form className="space-y-4" onSubmit={handleSubmit}>
         <label className="text-sm text-slate-300">
           Company email
@@ -73,6 +83,22 @@ export default function VerifyAccountPage() {
         </button>
         {status && <p className="text-sm text-rose-200">{status}</p>}
       </form>
-    </AuthCard>
+    </CardShell>
+  );
+}
+
+function VerifyFallback() {
+  return (
+    <CardShell>
+      <p className="text-sm text-slate-300">Loading verification details…</p>
+    </CardShell>
+  );
+}
+
+export default function VerifyAccountPage() {
+  return (
+    <Suspense fallback={<VerifyFallback />}>
+      <VerifyAccountContent />
+    </Suspense>
   );
 }

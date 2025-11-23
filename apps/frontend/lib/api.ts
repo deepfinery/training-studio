@@ -48,7 +48,7 @@ export interface EvaluationRecord {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:4000';
 
-function authHeaders() {
+function authHeaders(): Record<string, string> {
   if (typeof window === 'undefined') return {};
   const token = localStorage.getItem('idToken');
   return token ? { Authorization: `Bearer ${token}` } : {};

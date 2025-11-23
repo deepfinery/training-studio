@@ -26,7 +26,12 @@ export default function RegisterPage() {
     setBusy(true);
     setStatus(null);
     try {
-      await registerAccount({ email, password, name });
+      const result = await registerAccount({ email, password, name });
+      if (result.userConfirmed === false) {
+        setStatus('Account created. Check your inbox for the verification code.');
+        router.push(`/verify?email=${encodeURIComponent(email)}`);
+        return;
+      }
       const tokens = await login({ email, password });
       persistTokens(tokens);
       setStatus('Workspace created. Redirecting…');

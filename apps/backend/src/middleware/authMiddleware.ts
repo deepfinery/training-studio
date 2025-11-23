@@ -45,9 +45,11 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     const payload = await verifier.verify(token);
     req.user = {
       id: payload.sub,
-      email: (payload as Record<string, string>).email,
-      name: (payload as Record<string, string>).name ?? (payload as Record<string, string>)['cognito:username'],
-      groups: (payload as Record<string, string[]>['cognito:groups']) ?? []
+      email: (payload as Record<string, string | undefined>).email,
+      name:
+        (payload as Record<string, string | undefined>).name ??
+        (payload as Record<string, string | undefined>)['cognito:username'],
+      groups: ((payload as Record<string, unknown>)['cognito:groups'] as string[] | undefined) ?? []
     };
     return next();
   } catch (error) {

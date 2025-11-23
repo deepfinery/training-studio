@@ -1,5 +1,7 @@
 import {
+  ChangePasswordCommand,
   CognitoIdentityProviderClient,
+  ConfirmSignUpCommand,
   InitiateAuthCommand,
   SignUpCommand
 } from '@aws-sdk/client-cognito-identity-provider';
@@ -25,6 +27,20 @@ export async function registerUser(email: string, password: string, name?: strin
   return cognito.send(command);
 }
 
+export async function verifyUser(email: string, code: string) {
+  if (!env.COGNITO_CLIENT_ID) {
+    throw new Error('Cognito client id is not configured');
+  }
+
+  const command = new ConfirmSignUpCommand({
+    ClientId: env.COGNITO_CLIENT_ID,
+    Username: email,
+    ConfirmationCode: code
+  });
+
+  await cognito.send(command);
+}
+
 export async function loginUser(email: string, password: string) {
   if (!env.COGNITO_CLIENT_ID) {
     throw new Error('Cognito client id is not configured');
@@ -41,6 +57,21 @@ export async function loginUser(email: string, password: string) {
 
   const response = await cognito.send(command);
   return response.AuthenticationResult;
+}
+
+export async function changePassword(email: string, currentPassword: string, newPassword: string) {
+  const tokens = await loginUser(email, currentPassword);
+  if (!tokens?.AccessToken) {
+    throw new Error('Unable to authenticate user for password change');
+  }
+
+  const command = new ChangePasswordCommand({
+    AccessToken: tokens.AccessToken,
+    PreviousPassword: currentPassword,
+    ProposedPassword: newPassword
+  });
+
+  await cognito.send(command);
 }
 
 export function googleSsoUrl(redirectUri?: string) {

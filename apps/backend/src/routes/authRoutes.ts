@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { exchangeAuthCode, googleSsoUrl, loginUser, registerUser } from '../services/cognitoService';
+import { exchangeAuthCode, googleSsoUrl, loginUser, registerUser, verifyUser, changePassword } from '../services/cognitoService';
 
 const router = Router();
 
@@ -43,6 +43,45 @@ router.post('/login', async (req, res) => {
     res.json(result);
   } catch (error) {
     res.status(401).json({ message: error instanceof Error ? error.message : 'Failed to authenticate' });
+  }
+});
+
+router.post('/verify', async (req, res) => {
+  const schema = z.object({
+    email: z.string().email(),
+    code: z.string().min(4).max(12)
+  });
+
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: 'Invalid payload', error: parsed.error.flatten() });
+  }
+
+  try {
+    await verifyUser(parsed.data.email, parsed.data.code);
+    res.json({ verified: true });
+  } catch (error) {
+    res.status(400).json({ message: error instanceof Error ? error.message : 'Failed to verify account' });
+  }
+});
+
+router.post('/change-password', async (req, res) => {
+  const schema = z.object({
+    email: z.string().email(),
+    currentPassword: z.string().min(8),
+    newPassword: z.string().min(8)
+  });
+
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: 'Invalid payload', error: parsed.error.flatten() });
+  }
+
+  try {
+    await changePassword(parsed.data.email, parsed.data.currentPassword, parsed.data.newPassword);
+    res.json({ updated: true });
+  } catch (error) {
+    res.status(400).json({ message: error instanceof Error ? error.message : 'Unable to change password' });
   }
 });
 

@@ -23,7 +23,13 @@ export default function LoginPage() {
       persistTokens(tokens);
       router.push('/');
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Unable to sign in');
+      const message = error instanceof Error ? error.message : 'Unable to sign in';
+      if (message.toLowerCase().includes('confirm')) {
+        setStatus('Please verify your email to sign in.');
+        router.push(`/verify?email=${encodeURIComponent(email)}`);
+      } else {
+        setStatus(message);
+      }
     } finally {
       setBusy(false);
     }

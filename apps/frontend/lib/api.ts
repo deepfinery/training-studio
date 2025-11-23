@@ -133,6 +133,17 @@ export async function fetchEvaluations(): Promise<EvaluationRecord[]> {
   return payload.evaluations ?? [];
 }
 
+export interface UserProfile {
+  userId: string;
+  email: string;
+  name?: string;
+  role?: string;
+  company?: string;
+  phone?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export async function recordEvaluation(body: { jobId?: string; fileKey?: string; score?: number; label?: string; notes?: string }) {
   const res = await fetch(`${API_BASE}/api/evaluations`, {
     method: 'POST',
@@ -154,6 +165,15 @@ export async function registerAccount(body: { email: string; password: string; n
     body: JSON.stringify(body)
   });
   return parseResponse<{ userSub: string; userConfirmed?: boolean }>(res);
+}
+
+export async function verifyAccount(body: { email: string; code: string }) {
+  const res = await fetch(`${API_BASE}/api/auth/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  return parseResponse<{ verified: boolean }>(res);
 }
 
 export interface AuthTokens {
@@ -185,4 +205,29 @@ export async function exchangeCode(code: string, redirectUri?: string): Promise<
     body: JSON.stringify({ code, redirectUri })
   });
   return parseResponse<AuthTokens>(res);
+}
+
+export async function fetchProfile(): Promise<UserProfile> {
+  const res = await fetch(`${API_BASE}/api/profile`, { headers: { ...authHeaders() }, cache: 'no-store' });
+  const payload = await parseResponse<{ profile: UserProfile }>(res);
+  return payload.profile;
+}
+
+export async function updateProfile(body: Partial<Omit<UserProfile, 'userId' | 'email' | 'createdAt' | 'updatedAt'>>) {
+  const res = await fetch(`${API_BASE}/api/profile`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(body)
+  });
+  const payload = await parseResponse<{ profile: UserProfile }>(res);
+  return payload.profile;
+}
+
+export async function changePasswordApi(body: { email: string; currentPassword: string; newPassword: string }) {
+  const res = await fetch(`${API_BASE}/api/auth/change-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(body)
+  });
+  return parseResponse<{ updated: boolean }>(res);
 }

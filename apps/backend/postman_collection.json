@@ -72,6 +72,99 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Verify account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"code\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/verify",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "verify"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"currentPassword\": \"ExamplePass123!\",\n  \"newPassword\": \"ExamplePass456!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/change-password",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "change-password"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Profile",
+      "item": [
+        {
+          "name": "Get profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{id_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "profile"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{id_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test User\",\n  \"role\": \"ML Engineer\",\n  \"company\": \"DeepFinery\",\n  \"phone\": \"+1-555-123-4567\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "profile"]
+            }
+          },
+          "response": []
         }
       ]
     },

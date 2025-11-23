@@ -7,12 +7,14 @@ import fileRoutes from './routes/fileRoutes';
 import authRoutes from './routes/authRoutes';
 import evaluationRoutes from './routes/evaluationRoutes';
 import historyRoutes from './routes/historyRoutes';
+import profileRoutes from './routes/profileRoutes';
 
 export function createApp() {
   const app = express();
 
   app.use(cors());
   app.use(express.json({ limit: '5mb' }));
+  app.use(express.urlencoded({ extended: true }));
   app.use(morgan('dev'));
 
   app.get('/health', (_req, res) => {
@@ -20,6 +22,7 @@ export function createApp() {
   });
 
   app.use('/api/auth', authRoutes);
+  app.use('/api/profile', profileRoutes);
   app.use('/api/training', trainingRoutes);
   app.use('/api/ingestions', ingestionRoutes);
   app.use('/api/files', fileRoutes);

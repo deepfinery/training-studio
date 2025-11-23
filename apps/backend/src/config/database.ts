@@ -1,4 +1,4 @@
-import { Db, MongoClient } from 'mongodb';
+import { Db, Document, MongoClient, Collection } from 'mongodb';
 import { env } from './env';
 
 let client: MongoClient | null = null;
@@ -21,7 +21,7 @@ export async function initDb(): Promise<Db> {
   return database;
 }
 
-export async function getCollection<T>(name: string) {
+export async function getCollection<T extends Document = Document>(name: string): Promise<Collection<T>> {
   const db = await initDb();
   return db.collection<T>(name);
 }

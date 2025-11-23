@@ -1,0 +1,368 @@
+{
+  "info": {
+    "name": "DeepFinery Training Studio API",
+    "_postman_id": "8d9d9b4a-2f76-4a2f-9a1e-1f9b6cb5d1aa",
+    "description": "Postman collection to exercise the Training Studio backend.\n\nSet environment vars:\n- `base_url` (e.g., http://localhost:4000 or https://<host>)\n- `id_token` (Cognito IdToken for protected routes) \n- `dataset_uri` (e.g., s3://bucket/path/file.pdf)\n- `output_uri` (optional target for training output)\n- `job_id` (set after creating a job)\n- `file_key` (set after presign/complete)\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"ExamplePass123!\",\n  \"name\": \"Test User\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"ExamplePass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Google SSO URL",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/google",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "google"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Exchange auth code",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"<oauth_code>\",\n  \"redirectUri\": \"https://your-domain/sso/callback\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/exchange",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "exchange"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Files",
+      "item": [
+        {
+          "name": "Presign upload",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{id_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fileName\": \"doc.pdf\",\n  \"contentType\": \"application/pdf\",\n  \"kind\": \"ingestion\",\n  \"jobId\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/files/presign",
+              "host": ["{{base_url}}"],
+              "path": ["api", "files", "presign"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Complete upload",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{id_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"{{file_key}}\",\n  \"size\": 12345,\n  \"contentType\": \"application/pdf\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/files/complete",
+              "host": ["{{base_url}}"],
+              "path": ["api", "files", "complete"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List files",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{id_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/files",
+              "host": ["{{base_url}}"],
+              "path": ["api", "files"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Ingestion",
+      "item": [
+        {
+          "name": "Create ingestion record",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{id_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Policies v1\",\n  \"description\": \"Policy docs\",\n  \"sourceType\": \"pdf\",\n  \"fileKey\": \"{{file_key}}\",\n  \"tags\": [\"policy\", \"v1\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ingestion",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ingestion"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List ingestions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{id_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/ingestion",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ingestion"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Training",
+      "item": [
+        {
+          "name": "Create training job",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{id_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"datasetUri\": \"{{dataset_uri}}\",\n  \"datasetKey\": \"{{file_key}}\",\n  \"method\": \"qlora\",\n  \"hyperparams\": {\n    \"baseModel\": \"meta-llama/Meta-Llama-3-8B\",\n    \"sequenceLength\": 2048,\n    \"batchSize\": 2,\n    \"gradientAccumulation\": 4,\n    \"epochs\": 1,\n    \"learningRate\": 0.0002,\n    \"rank\": 16,\n    \"alpha\": 16,\n    \"dropout\": 0.05,\n    \"packing\": false\n  },\n  \"outputUri\": \"{{output_uri}}\",\n  \"name\": \"demo-run\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/training",
+              "host": ["{{base_url}}"],
+              "path": ["api", "training"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List training jobs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{id_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/training",
+              "host": ["{{base_url}}"],
+              "path": ["api", "training"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get training job",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{id_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/training/{{job_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "training", "{{job_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update training status",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{id_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"running\",\n  \"log\": \"processing batch\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/training/{{job_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "training", "{{job_id}}", "status"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Evaluations",
+      "item": [
+        {
+          "name": "List evaluations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{id_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/evaluations",
+              "host": ["{{base_url}}"],
+              "path": ["api", "evaluations"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create evaluation record",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{id_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jobId\": \"{{job_id}}\",\n  \"fileKey\": \"{{file_key}}\",\n  \"label\": \"smoke-test\",\n  \"score\": 0.9,\n  \"notes\": \"passes acceptance\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/evaluations",
+              "host": ["{{base_url}}"],
+              "path": ["api", "evaluations"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "History",
+      "item": [
+        {
+          "name": "History (jobs/files/evaluations)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{id_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/history",
+              "host": ["{{base_url}}"],
+              "path": ["api", "history"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

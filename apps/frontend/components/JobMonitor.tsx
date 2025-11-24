@@ -28,13 +28,23 @@ export function JobMonitor() {
         {(data ?? []).map(job => (
           <article key={job.id} className="rounded-2xl border border-white/10 bg-slate-900/30 p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-semibold text-white">{job.hyperparams.baseModel ?? 'Custom Adapter'}</p>
+              <p className="text-sm font-semibold text-white">{job.jobSpec.baseModel.modelName}</p>
               <span className={`rounded-full border px-3 py-1 text-xs font-medium ${statusColors[job.status]}`}>
                 {job.status}
               </span>
             </div>
-            <p className="text-xs text-slate-400">{job.method.toUpperCase()} · {job.datasetUri}</p>
-            <p className="mt-2 text-xs text-slate-500">Updated {new Date(job.updatedAt).toLocaleTimeString()}</p>
+            <p className="text-xs text-slate-400">
+              {job.method.toUpperCase()} · {job.datasetUri}
+            </p>
+            <p className="mt-2 text-xs text-slate-400">
+              Cluster: <span className="font-mono text-brand-200">{job.clusterName}</span> ({job.clusterKind})
+            </p>
+            {job.billing && (
+              <p className="text-xs text-slate-500">
+                Billed via {job.billing.source.replace(/-/g, ' ')} · {job.billing.amountUsd ? `$${job.billing.amountUsd.toFixed(2)}` : '0$'}
+              </p>
+            )}
+            <p className="mt-1 text-xs text-slate-500">Updated {new Date(job.updatedAt).toLocaleTimeString()}</p>
             {job.logs && (
               <ul className="mt-3 space-y-1 text-xs text-slate-300">
                 {job.logs.slice(-3).map((log, index) => (

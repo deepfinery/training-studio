@@ -1,20 +1,73 @@
+import { BillingRecord } from './billing';
+import { ClusterKind, ClusterProvider } from './cluster';
+
 export type TrainingMethod = 'qlora' | 'lora' | 'full' | 'new-transformer';
 
-export interface TrainingHyperparams {
-  baseModel: string;
-  sequenceLength: number;
-  batchSize: number;
-  gradientAccumulation: number;
-  epochs: number;
-  learningRate: number;
+export interface TrainerBaseModel {
+  provider: ClusterProvider;
+  modelName: string;
+  revision?: string;
+  authToken?: string;
+  weightsUrl?: string | null;
+}
+
+export interface TrainerCustomization {
+  method: TrainingMethod | string;
   rank?: number;
-  alpha?: number;
-  dropout?: number;
-  packing?: boolean;
+  targetModules?: string[];
+  loraAlpha?: number;
+  loraDropout?: number;
+  trainableLayers?: string[];
+  precision?: string;
+  qlora?: Record<string, unknown>;
+  peft?: { use: boolean; config?: Record<string, unknown> };
+}
+
+export interface TrainerResources {
+  gpus: number;
+  gpuType?: string;
+  cpus?: number;
+  memoryGb?: number;
+  maxDurationMinutes?: number;
+}
+
+export interface TrainerDataset {
+  source: string;
+  format: string;
+  auth?: Record<string, string>;
+}
+
+export interface TrainerArtifacts {
+  logUri?: string;
+  statusStreamUrl?: string;
+  outputUri?: string;
+}
+
+export interface TrainerCallbacks {
+  webhookUrl?: string;
+  authHeader?: string;
+}
+
+export interface TrainerJobSpec {
+  jobId?: string;
+  baseModel: TrainerBaseModel;
+  customization: TrainerCustomization;
+  resources: TrainerResources;
+  datasets: TrainerDataset[];
+  artifacts: TrainerArtifacts;
+  tuningParameters?: Record<string, unknown>;
+  callbacks?: TrainerCallbacks;
+}
+
+export interface TrainingJobStatusEntry {
+  status: TrainingJob['status'];
+  at: string;
+  message?: string;
 }
 
 export interface TrainingJob {
   id: string;
+  orgId: string;
   userId: string;
   name?: string;
   status: 'queued' | 'running' | 'succeeded' | 'failed';
@@ -22,20 +75,22 @@ export interface TrainingJob {
   datasetUri: string;
   datasetKey?: string;
   outputUri: string;
-  outputBucket?: string;
   evaluationScore?: number;
-  hyperparams: TrainingHyperparams;
+  jobSpec: TrainerJobSpec;
+  clusterId: string;
+  clusterName: string;
+  clusterProvider: ClusterProvider;
+  clusterKind: ClusterKind;
+  billing?: BillingRecord;
+  statusHistory: TrainingJobStatusEntry[];
   createdAt: string;
   updatedAt: string;
   logs?: string[];
+  externalPayload?: Record<string, unknown>;
 }
 
 export interface TrainingJobRequest {
-  datasetUri: string;
-  datasetKey?: string;
-  method: TrainingMethod;
-  hyperparams: TrainingHyperparams;
-  outputUri?: string;
-  outputBucket?: string;
   name?: string;
+  clusterId: string;
+  spec: TrainerJobSpec;
 }

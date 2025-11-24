@@ -24,7 +24,28 @@ const envSchema = z.object({
     .transform(value => value === true || value === 'true'),
   HUGGINGFACE_API_TOKEN: z.string().optional(),
   GCP_PROJECT: z.string().optional(),
-  GCS_BUCKET: z.string().optional()
+  GCS_BUCKET: z.string().optional(),
+  STRIPE_SECRET_KEY: z.string().optional(),
+  GLOBAL_ADMIN_IDS: z.string().optional().default(''),
+  JOB_FLAT_RATE_USD: z
+    .string()
+    .default('50')
+    .transform(value => {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : 50;
+    }),
+  ORG_FREE_JOB_LIMIT: z
+    .string()
+    .default('100')
+    .transform(value => {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) && parsed >= 0 ? parsed : 100;
+    }),
+  DEFAULT_MANAGED_CLUSTER_URL: z.string().min(1).default('http://localhost:8081'),
+  DEFAULT_MANAGED_CLUSTER_TOKEN: z.string().optional().default(''),
+  DEFAULT_MANAGED_CLUSTER_PROVIDER: z.enum(['huggingface', 'meta', 'nemo']).default('huggingface'),
+  PUBLIC_APP_URL: z.string().min(1).default('http://localhost:3000'),
+  PUBLIC_API_BASE_URL: z.string().min(1).default('http://localhost:4000')
 });
 
 export const env = envSchema.parse({
@@ -45,5 +66,14 @@ export const env = envSchema.parse({
   ALLOW_DEV_AUTH: process.env.ALLOW_DEV_AUTH,
   HUGGINGFACE_API_TOKEN: process.env.HUGGINGFACE_API_TOKEN,
   GCP_PROJECT: process.env.GCP_PROJECT,
-  GCS_BUCKET: process.env.GCS_BUCKET
+  GCS_BUCKET: process.env.GCS_BUCKET,
+  STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+  GLOBAL_ADMIN_IDS: process.env.GLOBAL_ADMIN_IDS,
+  JOB_FLAT_RATE_USD: process.env.JOB_FLAT_RATE_USD,
+  ORG_FREE_JOB_LIMIT: process.env.ORG_FREE_JOB_LIMIT,
+  DEFAULT_MANAGED_CLUSTER_URL: process.env.DEFAULT_MANAGED_CLUSTER_URL,
+  DEFAULT_MANAGED_CLUSTER_TOKEN: process.env.DEFAULT_MANAGED_CLUSTER_TOKEN,
+  DEFAULT_MANAGED_CLUSTER_PROVIDER: process.env.DEFAULT_MANAGED_CLUSTER_PROVIDER as any,
+  PUBLIC_APP_URL: process.env.PUBLIC_APP_URL,
+  PUBLIC_API_BASE_URL: process.env.PUBLIC_API_BASE_URL
 });

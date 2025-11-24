@@ -109,7 +109,10 @@ export default function ProfilePage() {
       <header className="glass-panel rounded-3xl border border-white/5 p-6">
         <p className="text-sm uppercase tracking-[0.35em] text-brand-200">Profile</p>
         <h1 className="text-3xl font-semibold text-white">Account overview</h1>
-        <p className="text-slate-300">Manage your identity, security, and workspace preferences.</p>
+        <div className="flex items-center gap-3">
+          <p className="text-slate-300">Manage your identity, security, and workspace preferences.</p>
+          {profile?.role && <span className="rounded-full border border-white/10 px-3 py-0.5 text-xs uppercase tracking-wide text-slate-200">{profile.role}</span>}
+        </div>
       </header>
       <div className="grid gap-6 lg:grid-cols-2">
         <form className="glass-panel rounded-3xl border border-white/5 p-6" onSubmit={handleSubmit}>
@@ -192,7 +195,7 @@ export default function ProfilePage() {
           )}
         </form>
         <div className="space-y-6">
-          <article className="glass-panel rounded-3xl border border-white/5 p-6">
+          <article id="security" className="glass-panel rounded-3xl border border-white/5 p-6">
             <h3 className="text-lg font-semibold text-white">Security</h3>
             <ul className="mt-4 space-y-3 text-sm text-slate-300">
               <li className="flex items-center justify-between">

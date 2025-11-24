@@ -22,6 +22,12 @@ DeepFinery is a Business Logic Refinery that turns human-readable rules into det
 - Deployment targets: EKS-hosted inference, downloadable container bundle, and S3 artifact storage.
 - Usage management (multi-tenant) with Cognito auth, billing hooks, and seat limits.
 
+### Latest additions
+- **Org-aware clusters and roles** – every authenticated request now resolves to an org (auto-provisioned on first login) with membership roles (`admin` vs `standard`). A managed `deepfinery-cluster` is seeded per org alongside customer-owned clusters, and admins can switch the default launch target from Settings.
+- **Pluggable training APIs** – the backend posts the shared `/train` payload to whichever cluster the user selects (DeepFinery Nemo/Meta/HF stacks or customer Kubernetes installs) and records job/billing state per cluster.
+- **Stripe billing + promo credits** – admins add cards/billing addresses/credits via the new Billing dashboard. DeepFinery-managed clusters charge a flat `$JOB_FLAT_RATE_USD` per run, while customer clusters are free up to `ORG_FREE_JOB_LIMIT` runs (promo credits stack on top). All launches require a card, even for free tiers, as enforced by the billing middleware.
+- **UI refresh** – the Training Configurator now surfaces cluster/billing metadata, Job Monitor shows cluster + billing sources, Settings has working radio controls for default clusters & notification toggles, and the Billing tab embeds Stripe Elements for card management.
+
 ## Getting Started
 Follow the quick-starts below to run locally or with Docker. Infrastructure (Cognito, S3, networking, certificates, etc.) now lives in a separate repo—pull the necessary values from that stack.
 
@@ -101,6 +107,7 @@ NEXT_PUBLIC_COGNITO_REDIRECT_URI=https://auth.studio.deepfinery.com/sso/callback
 NEXT_PUBLIC_GOOGLE_IDP=Google
 ```
 Leave `NEXT_PUBLIC_API_BASE` empty to reuse the same origin; set it only if browsers must talk to a public API host directly.
+Add `STRIPE_SECRET_KEY` (backend) and `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (frontend) to turn on the billing UI; without them job launches that target the managed cluster will fail fast. You can also set `GLOBAL_ADMIN_IDS` (comma-separated Cognito sub IDs) to give platform operators cross-org access during support sessions.
 4) Deploy: `./scripts/deploy.sh` (rsyncs to `44.215.126.72` and runs `docker compose up -d --build`).  
 5) Verify: Backend at `http://44.215.126.72:4000`, Frontend at `http://44.215.126.72:3000`. Update the protocol/port if you terminate TLS elsewhere.
 
@@ -137,6 +144,12 @@ Copy these templates, fill Cognito + S3 + DocumentDB identifiers (or rely on Ter
 - `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`: Required for S3 dataset storage and EKS orchestration.
 - `COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID`: Used by both backend (token validation) and frontend (auth flows).
 - `HUGGINGFACE_API_TOKEN`: Passed to training jobs for dataset download / model push.
+- `STRIPE_SECRET_KEY`: Enables the billing stack (SetupIntents, card vaulting, job charges). Required for managed-cluster launches.
+- `GLOBAL_ADMIN_IDS`: Comma-separated Cognito subject IDs that should bypass org boundaries (platform super-users).
+- `JOB_FLAT_RATE_USD`, `ORG_FREE_JOB_LIMIT`: Tune managed-cluster charge per job and customer-cluster free-tier thresholds.
+- `DEFAULT_MANAGED_CLUSTER_URL`, `DEFAULT_MANAGED_CLUSTER_TOKEN`, `DEFAULT_MANAGED_CLUSTER_PROVIDER`: Seed values for the managed `deepfinery-cluster`.
+- `PUBLIC_API_BASE_URL`, `PUBLIC_APP_URL`: Used to generate cluster callback URLs/webhooks for the trainer APIs.
+- Frontend-only: `NEXT_PUBLIC_API_BASE` (if the dashboard must hit a public backend) and `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (Stripe Elements). Without the publishable key the Billing page will show a warning.
 - `GCP_PROJECT`, `GCS_BUCKET`: Optional, for Vertex AI submissions.
 
 ## Status

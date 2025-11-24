@@ -1,20 +1,79 @@
 export type TrainingMethod = 'qlora' | 'lora' | 'full' | 'new-transformer';
 
+export interface TrainerJobSpec {
+  baseModel: {
+    provider: 'huggingface' | 'meta' | 'nemo';
+    modelName: string;
+    revision?: string;
+    authToken?: string;
+    weightsUrl?: string | null;
+  };
+  customization: {
+    method: string;
+    rank?: number;
+    targetModules?: string[];
+    loraAlpha?: number;
+    loraDropout?: number;
+    trainableLayers?: string[];
+    precision?: string;
+    qlora?: Record<string, unknown>;
+    peft?: { use: boolean; config?: Record<string, unknown> };
+  };
+  resources: {
+    gpus: number;
+    gpuType?: string;
+    cpus?: number;
+    memoryGb?: number;
+    maxDurationMinutes?: number;
+  };
+  datasets: Array<{
+    source: string;
+    format: string;
+    auth?: Record<string, string>;
+  }>;
+  artifacts: {
+    logUri?: string;
+    statusStreamUrl?: string;
+    outputUri?: string;
+  };
+  tuningParameters?: Record<string, unknown>;
+  callbacks?: {
+    webhookUrl?: string;
+    authHeader?: string;
+  };
+}
+
+export interface BillingRecord {
+  source: 'promo-credit' | 'customer-free-tier' | 'managed-free-tier' | 'card';
+  amountUsd: number;
+  currency: string;
+  promoCreditsUsed?: number;
+  chargeId?: string;
+  recordedAt: string;
+}
+
+export interface TrainingJobStatusEntry {
+  status: 'queued' | 'running' | 'succeeded' | 'failed';
+  at: string;
+  message?: string;
+}
+
 export interface TrainingJob {
   id: string;
+  name?: string;
   status: 'queued' | 'running' | 'succeeded' | 'failed';
   method: TrainingMethod;
   datasetUri: string;
-  datasetKey?: string;
   outputUri: string;
   createdAt: string;
   updatedAt: string;
-  name?: string;
-  evaluationScore?: number;
-  hyperparams: {
-    baseModel?: string;
-    [key: string]: unknown;
-  };
+  clusterId: string;
+  clusterName: string;
+  clusterProvider: 'huggingface' | 'meta' | 'nemo';
+  clusterKind: 'managed' | 'customer';
+  billing?: BillingRecord;
+  jobSpec: TrainerJobSpec;
+  statusHistory: TrainingJobStatusEntry[];
   logs?: string[];
 }
 
@@ -73,24 +132,9 @@ export async function fetchJobs(): Promise<TrainingJob[]> {
 }
 
 export interface CreateJobInput {
-  datasetUri: string;
-  datasetKey?: string;
-  method: TrainingMethod;
-  hyperparams: {
-    baseModel: string;
-    sequenceLength: number;
-    batchSize: number;
-    gradientAccumulation: number;
-    epochs: number;
-    learningRate: number;
-    rank?: number;
-    alpha?: number;
-    dropout?: number;
-    packing?: boolean;
-  };
-  outputUri?: string;
-  outputBucket?: string;
   name?: string;
+  clusterId: string;
+  spec: TrainerJobSpec;
 }
 
 export async function createJob(body: CreateJobInput) {
@@ -99,8 +143,7 @@ export async function createJob(body: CreateJobInput) {
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(body)
   });
-
-  return parseResponse(res);
+  return parseResponse<TrainingJob>(res);
 }
 
 export async function requestUpload(body: { fileName: string; contentType?: string; kind: FileKind; jobId?: string }) {
@@ -208,10 +251,10 @@ export async function exchangeCode(code: string, redirectUri?: string): Promise<
   return parseResponse<AuthTokens>(res);
 }
 
-export async function fetchProfile(): Promise<UserProfile> {
+export async function fetchProfile(): Promise<UserProfile & { role?: string }> {
   const res = await fetch(apiUrl('/api/profile'), { headers: { ...authHeaders() }, cache: 'no-store' });
-  const payload = await parseResponse<{ profile: UserProfile }>(res);
-  return payload.profile;
+  const payload = await parseResponse<{ profile: UserProfile; role?: string }>(res);
+  return { ...payload.profile, role: payload.role };
 }
 
 export async function updateProfile(body: Partial<Omit<UserProfile, 'userId' | 'email' | 'createdAt' | 'updatedAt'>>) {
@@ -231,4 +274,153 @@ export async function changePasswordApi(body: { email: string; currentPassword: 
     body: JSON.stringify(body)
   });
   return parseResponse<{ updated: boolean }>(res);
+}
+
+export interface ClusterSummary {
+  id: string;
+  name: string;
+  provider: 'huggingface' | 'meta' | 'nemo';
+  apiBaseUrl: string;
+  kind: 'managed' | 'customer';
+  requiresPayment: boolean;
+  ownedBy: 'platform' | 'customer';
+  locked?: boolean;
+  tokenPreview?: string;
+  metadata?: {
+    gpuType?: string;
+    region?: string;
+  };
+}
+
+export async function fetchClusters(): Promise<ClusterSummary[]> {
+  const res = await fetch(apiUrl('/api/clusters'), { headers: { ...authHeaders() }, cache: 'no-store' });
+  const payload = await parseResponse<{ clusters: ClusterSummary[] }>(res);
+  return payload.clusters ?? [];
+}
+
+export async function createClusterRequest(body: { name: string; provider: ClusterSummary['provider']; apiBaseUrl: string; apiToken: string; gpuType?: string; region?: string }) {
+  const res = await fetch(apiUrl('/api/clusters'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(body)
+  });
+  return parseResponse<{ cluster: ClusterSummary }>(res);
+}
+
+export async function updateClusterRequest(clusterId: string, body: Partial<{ name: string; provider: ClusterSummary['provider']; apiBaseUrl: string; apiToken: string; gpuType?: string; region?: string }>) {
+  const res = await fetch(apiUrl(`/api/clusters/${clusterId}`), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(body)
+  });
+  return parseResponse<{ cluster: ClusterSummary }>(res);
+}
+
+export interface OrgContext {
+  org?: {
+    id: string;
+    name: string;
+    slug: string;
+    defaultClusterId?: string;
+    promoCredits: number;
+    freeJobsConsumed: number;
+  };
+  membership?: {
+    role: 'admin' | 'standard';
+  };
+  isGlobalAdmin: boolean;
+}
+
+export async function fetchOrgContext(): Promise<OrgContext> {
+  const res = await fetch(apiUrl('/api/org/context'), { headers: { ...authHeaders() }, cache: 'no-store' });
+  return parseResponse<OrgContext>(res);
+}
+
+export async function setDefaultCluster(clusterId: string) {
+  const res = await fetch(apiUrl('/api/org/default-cluster'), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ clusterId })
+  });
+  return parseResponse<{ org: OrgContext['org'] }>(res);
+}
+
+export interface BillingOverview {
+  promoCredits: number;
+  freeJobsRemaining: number;
+  paymentMethods: Array<{
+    id: string;
+    brand?: string | null;
+    last4?: string | null;
+    expMonth?: number | null;
+    expYear?: number | null;
+    isDefault?: boolean;
+  }>;
+  defaultPaymentMethodId?: string;
+  requiresPaymentMethod: boolean;
+  address?: {
+    line1?: string;
+    line2?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?: string;
+  };
+}
+
+export async function fetchBillingOverview(): Promise<BillingOverview> {
+  const res = await fetch(apiUrl('/api/billing/overview'), { headers: { ...authHeaders() }, cache: 'no-store' });
+  return parseResponse<BillingOverview>(res);
+}
+
+export async function createSetupIntent() {
+  const res = await fetch(apiUrl('/api/billing/setup-intent'), {
+    method: 'POST',
+    headers: { ...authHeaders() }
+  });
+  return parseResponse<{ clientSecret: string }>(res);
+}
+
+export async function attachPaymentMethod(paymentMethodId: string, makeDefault = true) {
+  const res = await fetch(apiUrl('/api/billing/attach'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ paymentMethodId, makeDefault })
+  });
+  return parseResponse<BillingOverview>(res);
+}
+
+export async function setDefaultPaymentMethod(paymentMethodId: string) {
+  const res = await fetch(apiUrl('/api/billing/default'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ paymentMethodId })
+  });
+  return parseResponse<BillingOverview>(res);
+}
+
+export async function removePaymentMethod(paymentMethodId: string) {
+  const res = await fetch(apiUrl(`/api/billing/payment-methods/${paymentMethodId}`), {
+    method: 'DELETE',
+    headers: { ...authHeaders() }
+  });
+  return parseResponse<BillingOverview>(res);
+}
+
+export async function updateBillingAddress(address: BillingOverview['address']) {
+  const res = await fetch(apiUrl('/api/billing/address'), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(address)
+  });
+  return parseResponse<BillingOverview>(res);
+}
+
+export async function applyPromoCode(code: string) {
+  const res = await fetch(apiUrl('/api/billing/promo'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ code })
+  });
+  return parseResponse<{ promoCredits: number }>(res);
 }

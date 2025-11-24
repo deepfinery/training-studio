@@ -40,7 +40,7 @@ export function HistoryPanel() {
               <li key={job.id} className="flex items-center justify-between rounded-2xl border border-white/5 bg-slate-950/40 px-3 py-2">
                 <span className="flex items-center gap-2">
                   <Clock3 className="h-4 w-4 text-brand-300" />
-                  {job.name ?? job.hyperparams.baseModel ?? job.id}
+                  {job.name ?? job.jobSpec.baseModel.modelName ?? job.id}
                 </span>
                 <span className="rounded-full bg-white/5 px-2 py-0.5 text-[11px] uppercase tracking-wide text-slate-300">
                   {job.status}

@@ -2,7 +2,16 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
-import { createJob, fetchFiles, FileRecord, TrainingMethod } from '../lib/api';
+import {
+  ClusterSummary,
+  createJob,
+  fetchClusters,
+  fetchFiles,
+  fetchOrgContext,
+  FileRecord,
+  TrainingMethod,
+  TrainerJobSpec
+} from '../lib/api';
 
 const methodOptions: { label: string; value: TrainingMethod; description: string }[] = [
   { label: 'QLoRA', value: 'qlora', description: '4-bit adapters for efficient GPUs' },
@@ -11,18 +20,30 @@ const methodOptions: { label: string; value: TrainingMethod; description: string
   { label: 'New transformer', value: 'new-transformer', description: 'Spin up a bespoke architecture' }
 ];
 
+const baseModelOptions = [
+  { label: 'Llama 3.2 3B Instruct', value: 'meta-llama/Llama-3.2-3B-Instruct', provider: 'huggingface' as const },
+  { label: 'Llama 3.1 8B Instruct', value: 'meta-llama/Llama-3.1-8B-Instruct', provider: 'huggingface' as const },
+  { label: 'Nemotron 4 Instruct', value: 'nvidia/Nemotron-4-340B-Instruct', provider: 'nemo' as const }
+];
+
 export function TrainingConfigurator() {
   const [method, setMethod] = useState<TrainingMethod>('qlora');
   const [layers, setLayers] = useState(4);
-  const [baseModel, setBaseModel] = useState('meta-llama/Llama-3.2-3B-Instruct');
+  const [baseModel, setBaseModel] = useState(baseModelOptions[0]);
   const [datasetUri, setDatasetUri] = useState('s3://deepfinery-datasets/example.jsonl');
   const [datasetKey, setDatasetKey] = useState<string | undefined>();
   const [jobName, setJobName] = useState('LoRA refinement');
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [clusterId, setClusterId] = useState<string | null>(null);
+  const [gpus, setGpus] = useState(4);
+  const [gpuType, setGpuType] = useState('A100');
+  const [maxDuration, setMaxDuration] = useState(720);
   const { data: files } = useSWR<FileRecord[]>('ingestion-files', () => fetchFiles('ingestion'), {
     refreshInterval: 15000
   });
+  const { data: clusters } = useSWR<ClusterSummary[]>('clusters', fetchClusters, { refreshInterval: 30000 });
+  const { data: orgContext } = useSWR('org-context', fetchOrgContext, { refreshInterval: 60000 });
 
   useEffect(() => {
     if (files && files.length > 0 && !datasetKey) {
@@ -46,28 +67,72 @@ export function TrainingConfigurator() {
     return blocks;
   }, [layers]);
 
+  useEffect(() => {
+    if (!clusters || clusters.length === 0 || clusterId) return;
+    const preferred = orgContext?.org?.defaultClusterId;
+    const fallback = preferred && clusters.some(cluster => cluster.id === preferred) ? preferred : clusters[0]?.id;
+    if (fallback) setClusterId(fallback);
+  }, [clusters, clusterId, orgContext]);
+
   const handleSubmit = async () => {
+    if (!clusterId) {
+      setStatus('Select a cluster first.');
+      return;
+    }
+
     setBusy(true);
     setStatus('Submitting job...');
     try {
-      await createJob({
-        datasetUri,
-        datasetKey,
-        name: jobName,
-        method,
-        hyperparams: {
-          baseModel,
-          sequenceLength: 512,
-          batchSize: 1,
-          gradientAccumulation: 4,
-          epochs: 2,
-          learningRate: 1e-4,
-          rank: method === 'full' ? undefined : 32,
-          alpha: method === 'full' ? undefined : 16,
-          dropout: 0.05,
-          packing: true
+      const spec: TrainerJobSpec = {
+        baseModel: {
+          provider: baseModel.provider,
+          modelName: baseModel.value,
+          revision: 'main'
         },
-        outputUri: 's3://deepfinery-trained-models/latest'
+        customization: {
+          method,
+          rank: method === 'full' ? undefined : layers * 8,
+          targetModules: ['q_proj', 'v_proj'],
+          loraAlpha: 32,
+          loraDropout: 0.05,
+          trainableLayers: ['decoder.layers.0'],
+          precision: 'bf16',
+          qlora: method === 'qlora' ? { use_double_quant: true, bnb_4bit_compute_dtype: 'bfloat16' } : undefined,
+          peft: { use: method !== 'full', config: { task_type: 'CAUSAL_LM' } }
+        },
+        resources: {
+          gpus,
+          gpuType,
+          cpus: 16,
+          memoryGb: 128,
+          maxDurationMinutes: maxDuration
+        },
+        datasets: [
+          {
+            source: datasetUri,
+            format: datasetUri.endsWith('.jsonl') ? 'jsonl' : 'auto'
+          }
+        ],
+        artifacts: {
+          logUri: `s3://deepfinery-logs/${datasetKey ?? 'latest'}`,
+          outputUri: `s3://deepfinery-trained-models/${jobName
+            .toLowerCase()
+            .replace(/[^a-z0-9-]/g, '-')}-${Date.now()}`
+        },
+        tuningParameters: {
+          learning_rate: 2e-4,
+          batch_size: 64,
+          num_epochs: 3,
+          warmup_ratio: 0.1,
+          gradient_checkpointing: true,
+          max_sequence_length: 4096
+        }
+      };
+
+      await createJob({
+        name: jobName,
+        clusterId,
+        spec
       });
       setStatus('Job queued successfully.');
     } catch (error) {
@@ -75,6 +140,36 @@ export function TrainingConfigurator() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const renderCluster = (cluster: ClusterSummary) => {
+    const selected = cluster.id === clusterId;
+    const badge =
+      cluster.kind === 'managed' || cluster.requiresPayment
+        ? 'Billable ($50/run)'
+        : 'Org free tier (≤100 jobs)';
+    return (
+      <label
+        key={cluster.id}
+        className={`flex cursor-pointer flex-col gap-2 rounded-2xl border px-4 py-3 transition ${selected ? 'border-brand-400 bg-brand-400/10' : 'border-white/10 bg-slate-900/30'}`}
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-white">{cluster.name}</p>
+            <p className="text-xs text-slate-400 capitalize">{cluster.provider} · {cluster.metadata?.region ?? 'multi-region'}</p>
+          </div>
+          <input
+            type="radio"
+            name="cluster"
+            value={cluster.id}
+            checked={selected}
+            onChange={() => setClusterId(cluster.id)}
+            className="accent-brand-400"
+          />
+        </div>
+        <p className="text-xs text-slate-400">{badge}</p>
+      </label>
+    );
   };
 
   return (
@@ -132,15 +227,55 @@ export function TrainingConfigurator() {
         <label className="text-sm text-slate-200">
           Base model
           <select
-            value={baseModel}
-            onChange={event => setBaseModel(event.target.value)}
+            value={baseModel.value}
+            onChange={event => {
+              const model = baseModelOptions.find(option => option.value === event.target.value);
+              if (model) setBaseModel(model);
+            }}
             className="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/40 px-3 py-2 text-white shadow-inner"
           >
-            <option value="meta-llama/Llama-3.2-3B-Instruct">Llama 3.2 3B Instruct</option>
-            <option value="meta-llama/Llama-3.1-8B-Instruct">Llama 3.1 8B Instruct</option>
-            <option value="nvidia/Nemotron-4-340B-Instruct">Nemotron 4 Instruct</option>
+            {baseModelOptions.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </label>
+
+        <div className="grid gap-3 md:grid-cols-3">
+          <label className="text-sm text-slate-200">
+            GPUs
+            <input
+              type="number"
+              min={1}
+              max={16}
+              value={gpus}
+              onChange={event => setGpus(Number(event.target.value))}
+              className="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/40 px-3 py-2 text-white shadow-inner"
+            />
+          </label>
+          <label className="text-sm text-slate-200">
+            GPU type
+            <input
+              type="text"
+              value={gpuType}
+              onChange={event => setGpuType(event.target.value)}
+              className="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/40 px-3 py-2 text-white shadow-inner"
+            />
+          </label>
+          <label className="text-sm text-slate-200">
+            Max duration (min)
+            <input
+              type="number"
+              min={60}
+              max={1440}
+              step={60}
+              value={maxDuration}
+              onChange={event => setMaxDuration(Number(event.target.value))}
+              className="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/40 px-3 py-2 text-white shadow-inner"
+            />
+          </label>
+        </div>
 
         <div>
           <div className="flex items-center justify-between text-sm text-slate-200">
@@ -176,6 +311,15 @@ export function TrainingConfigurator() {
             <p className="text-xs text-slate-400">{option.description}</p>
           </button>
         ))}
+      </div>
+
+      <div className="space-y-3 rounded-2xl border border-white/10 bg-slate-900/30 p-4">
+        <p className="text-sm font-semibold text-white">Target cluster</p>
+        <div className="grid gap-3 md:grid-cols-2">
+          {clusters && clusters.length > 0 ? clusters.map(renderCluster) : (
+            <p className="text-sm text-slate-400">No clusters configured yet.</p>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col gap-3 md:flex-row md:items-center">

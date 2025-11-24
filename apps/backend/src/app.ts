@@ -1,13 +1,16 @@
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
-import trainingRoutes from './routes/trainingRoutes';
+import trainingRoutes, { trainingWebhookRouter } from './routes/trainingRoutes';
 import ingestionRoutes from './routes/ingestionRoutes';
 import fileRoutes from './routes/fileRoutes';
 import authRoutes from './routes/authRoutes';
 import evaluationRoutes from './routes/evaluationRoutes';
 import historyRoutes from './routes/historyRoutes';
 import profileRoutes from './routes/profileRoutes';
+import clusterRoutes from './routes/clusterRoutes';
+import billingRoutes from './routes/billingRoutes';
+import orgRoutes from './routes/orgRoutes';
 
 export function createApp() {
   const app = express();
@@ -23,7 +26,11 @@ export function createApp() {
 
   app.use('/api/auth', authRoutes);
   app.use('/api/profile', profileRoutes);
+  app.use('/api/training', trainingWebhookRouter);
   app.use('/api/training', trainingRoutes);
+  app.use('/api/org', orgRoutes);
+  app.use('/api/clusters', clusterRoutes);
+  app.use('/api/billing', billingRoutes);
   app.use('/api/ingestions', ingestionRoutes);
   app.use('/api/files', fileRoutes);
   app.use('/api/evaluations', evaluationRoutes);

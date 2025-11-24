@@ -8,7 +8,7 @@ export default function TrainingPage() {
       <header className="glass-panel rounded-3xl border border-white/5 p-6">
         <p className="text-sm uppercase tracking-[0.35em] text-brand-200">Training Hub</p>
         <h1 className="text-3xl font-semibold text-white">Configure, dispatch, and review every job</h1>
-        <p className="text-slate-300">Map ontologies to datasets, fine-tune on GPUs or Vertex, and stream job logs in one view.</p>
+        <p className="text-slate-300">Select a cluster, review billing state, and launch jobs that fan out to DeepFinery or customer Kubernetes APIs.</p>
       </header>
       <FileUploadPanel />
       <div className="grid gap-6 lg:grid-cols-12">

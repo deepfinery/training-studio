@@ -43,6 +43,7 @@ Follow the quick-starts below to run locally or with Docker. Infrastructure (Cog
 2) Build & run: `docker compose up --build`  
    - Frontend: http://localhost:3000  
    - Backend: http://localhost:4000
+   - Docs (Docusaurus): http://localhost:3050/docs/
 3) Build images individually (optional)  
    - Backend: `docker build -f apps/backend/Dockerfile -t training-backend .`  
    - Frontend: `docker build -f apps/frontend/Dockerfile -t training-frontend .`

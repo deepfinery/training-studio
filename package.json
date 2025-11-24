@@ -7,7 +7,8 @@
   },
   "workspaces": [
     "apps/backend",
-    "apps/frontend"
+    "apps/frontend",
+    "apps/docs"
   ],
   "scripts": {
     "dev:backend": "npm --workspace apps/backend run dev",

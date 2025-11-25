@@ -81,11 +81,17 @@ export type FileKind = 'ingestion' | 'training-input' | 'training-output' | 'eva
 export interface FileRecord {
   id?: string;
   userId?: string;
+  projectId: string;
   key: string;
   bucket: string;
   kind: FileKind;
   status: 'pending' | 'uploaded';
   originalName: string;
+  title?: string;
+  description?: string;
+  category?: string;
+  tags?: string[];
+  metadata?: Record<string, unknown>;
   contentType?: string;
   size?: number;
   createdAt: string;
@@ -105,6 +111,15 @@ export interface EvaluationRecord {
   updatedAt: string;
 }
 
+export interface ProjectRecord {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  archived?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? '').replace(/\/$/, '');
 const apiUrl = (path: string) => `${API_BASE}${path}`;
 
@@ -146,7 +161,18 @@ export async function createJob(body: CreateJobInput) {
   return parseResponse<TrainingJob>(res);
 }
 
-export async function requestUpload(body: { fileName: string; contentType?: string; kind: FileKind; jobId?: string }) {
+export async function requestUpload(body: {
+  fileName: string;
+  contentType?: string;
+  kind: FileKind;
+  jobId?: string;
+  projectId: string;
+  size: number;
+  title?: string;
+  description?: string;
+  category?: string;
+  tags?: string[];
+}) {
   const res = await fetch(apiUrl('/api/files/presign'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
@@ -155,7 +181,17 @@ export async function requestUpload(body: { fileName: string; contentType?: stri
   return parseResponse<{ uploadUrl: string; key: string; bucket: string }>(res);
 }
 
-export async function completeUpload(body: { key: string; size?: number; contentType?: string; jobId?: string }) {
+export async function completeUpload(body: {
+  key: string;
+  size?: number;
+  contentType?: string;
+  jobId?: string;
+  projectId: string;
+  title?: string;
+  description?: string;
+  category?: string;
+  tags?: string[];
+}) {
   const res = await fetch(apiUrl('/api/files/complete'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
@@ -164,9 +200,78 @@ export async function completeUpload(body: { key: string; size?: number; content
   return parseResponse(res);
 }
 
-export async function fetchFiles(kind?: FileKind): Promise<FileRecord[]> {
-  const params = kind ? `?kind=${encodeURIComponent(kind)}` : '';
-  const res = await fetch(apiUrl(`/api/files${params}`), { headers: { ...authHeaders() }, cache: 'no-store' });
+export async function initiateMultipartUpload(body: {
+  fileName: string;
+  size: number;
+  projectId: string;
+  kind: FileKind;
+  contentType?: string;
+  jobId?: string;
+  title?: string;
+  description?: string;
+  category?: string;
+  tags?: string[];
+}) {
+  const res = await fetch(apiUrl('/api/files/multipart/initiate'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(body)
+  });
+  return parseResponse<{ uploadId: string; key: string; bucket: string; partSize: number }>(res);
+}
+
+export async function signMultipartPart(body: { uploadId: string; projectId: string; key: string; partNumber: number }) {
+  const res = await fetch(apiUrl('/api/files/multipart/sign-part'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(body)
+  });
+  return parseResponse<{ url: string }>(res);
+}
+
+export async function completeMultipartUpload(body: {
+  uploadId: string;
+  key: string;
+  projectId: string;
+  parts: Array<{ partNumber: number; etag: string }>;
+  title?: string;
+  description?: string;
+  category?: string;
+  tags?: string[];
+  size?: number;
+  contentType?: string;
+}) {
+  const res = await fetch(apiUrl('/api/files/multipart/complete'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(body)
+  });
+  return parseResponse<FileRecord>(res);
+}
+
+export async function abortMultipartUpload(body: { uploadId: string; key: string; projectId: string }) {
+  await fetch(apiUrl('/api/files/multipart/abort'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(body)
+  });
+}
+
+export async function deleteFile(fileId: string) {
+  const res = await fetch(apiUrl(`/api/files/${fileId}`), {
+    method: 'DELETE',
+    headers: { ...authHeaders() }
+  });
+  return parseResponse<{ file: FileRecord }>(res);
+}
+
+export async function fetchFiles(kind: FileKind | undefined, projectId: string): Promise<FileRecord[]> {
+  if (!projectId) {
+    throw new Error('projectId is required to fetch files');
+  }
+  const params = new URLSearchParams({ projectId });
+  if (kind) params.set('kind', kind);
+  const res = await fetch(apiUrl(`/api/files?${params.toString()}`), { headers: { ...authHeaders() }, cache: 'no-store' });
   const payload = await parseResponse<{ files: FileRecord[] }>(res);
   return payload.files ?? [];
 }
@@ -197,8 +302,16 @@ export async function recordEvaluation(body: { jobId?: string; fileKey?: string;
   return parseResponse(res);
 }
 
-export async function fetchHistory(): Promise<{ jobs: TrainingJob[]; files: FileRecord[]; evaluations: EvaluationRecord[] }> {
-  const res = await fetch(apiUrl('/api/history'), { headers: { ...authHeaders() }, cache: 'no-store' });
+export async function fetchHistory(
+  projectId: string
+): Promise<{ jobs: TrainingJob[]; files: FileRecord[]; evaluations: EvaluationRecord[] }> {
+  if (!projectId) {
+    throw new Error('projectId is required');
+  }
+  const res = await fetch(apiUrl(`/api/history?projectId=${encodeURIComponent(projectId)}`), {
+    headers: { ...authHeaders() },
+    cache: 'no-store'
+  });
   return parseResponse(res);
 }
 
@@ -334,6 +447,31 @@ export interface OrgContext {
 export async function fetchOrgContext(): Promise<OrgContext> {
   const res = await fetch(apiUrl('/api/org/context'), { headers: { ...authHeaders() }, cache: 'no-store' });
   return parseResponse<OrgContext>(res);
+}
+
+export async function fetchProjects(): Promise<ProjectRecord[]> {
+  const res = await fetch(apiUrl('/api/projects'), { headers: { ...authHeaders() }, cache: 'no-store' });
+  const payload = await parseResponse<{ projects: ProjectRecord[] }>(res);
+  return payload.projects ?? [];
+}
+
+export async function createProject(body: { name: string }): Promise<ProjectRecord> {
+  const res = await fetch(apiUrl('/api/projects'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(body)
+  });
+  const payload = await parseResponse<{ project: ProjectRecord }>(res);
+  return payload.project;
+}
+
+export async function deleteProject(projectId: string): Promise<ProjectRecord> {
+  const res = await fetch(apiUrl(`/api/projects/${projectId}`), {
+    method: 'DELETE',
+    headers: { ...authHeaders() }
+  });
+  const payload = await parseResponse<{ project: ProjectRecord }>(res);
+  return payload.project;
 }
 
 export async function setDefaultCluster(clusterId: string) {

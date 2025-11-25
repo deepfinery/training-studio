@@ -36,7 +36,7 @@ services:
       - PUBLIC_APP_URL=${PUBLIC_APP_URL:-http://localhost:3000}
       - PUBLIC_API_BASE_URL=${PUBLIC_API_BASE_URL:-http://localhost:4000}
     ports:
-      - "${PORT:-4000}:4000"
+      - "${BACKEND_HOST_PORT:-4000}:4000"
 
   frontend:
     build:
@@ -53,6 +53,7 @@ services:
         NEXT_PUBLIC_GOOGLE_IDP: ${COGNITO_GOOGLE_IDP}
         NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
     environment:
+      - PORT=3000
       - BACKEND_INTERNAL_BASE=${BACKEND_INTERNAL_BASE:-http://backend:4000}
       - NEXT_PUBLIC_API_BASE=${NEXT_PUBLIC_API_BASE:-}
       - NEXT_PUBLIC_AWS_REGION=${AWS_REGION}
@@ -63,7 +64,7 @@ services:
       - NEXT_PUBLIC_GOOGLE_IDP=${COGNITO_GOOGLE_IDP}
       - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
     ports:
-      - "3000:3000"
+      - "${FRONTEND_HOST_PORT:-3000}:3000"
     depends_on:
       - backend
 
@@ -75,4 +76,4 @@ services:
     environment:
       - CHOKIDAR_USEPOLLING=true
     ports:
-      - "3050:3050"
+      - "${DOCS_HOST_PORT:-3050}:3050"

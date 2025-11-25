@@ -10,6 +10,18 @@ const envSchema = z.object({
   S3_DATA_BUCKET: z.string().min(1).default('deepfinery-training-data'),
   S3_MODEL_BUCKET: z.string().min(1).default('deepfinery-trained-models'),
   AWS_PROFILE: z.string().optional(),
+  AWS_ACCESS_KEY_ID: z
+    .string()
+    .optional()
+    .transform(value => (value && value.trim().length > 0 ? value.trim() : undefined)),
+  AWS_SECRET_ACCESS_KEY: z
+    .string()
+    .optional()
+    .transform(value => (value && value.trim().length > 0 ? value.trim() : undefined)),
+  AWS_SESSION_TOKEN: z
+    .string()
+    .optional()
+    .transform(value => (value && value.trim().length > 0 ? value.trim() : undefined)),
   COGNITO_USER_POOL_ID: z.string().optional().default(''),
   COGNITO_CLIENT_ID: z.string().optional().default(''),
   COGNITO_DOMAIN: z.string().optional().default(''),
@@ -55,6 +67,9 @@ export const env = envSchema.parse({
   S3_DATA_BUCKET: process.env.S3_DATA_BUCKET,
   S3_MODEL_BUCKET: process.env.S3_MODEL_BUCKET,
   AWS_PROFILE: process.env.AWS_PROFILE,
+  AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
+  AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
+  AWS_SESSION_TOKEN: process.env.AWS_SESSION_TOKEN,
   COGNITO_USER_POOL_ID: process.env.COGNITO_USER_POOL_ID,
   COGNITO_CLIENT_ID: process.env.COGNITO_CLIENT_ID,
   COGNITO_DOMAIN: process.env.COGNITO_DOMAIN,

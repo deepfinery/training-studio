@@ -10,10 +10,15 @@ const router = Router();
 router.use(requireAuth, withOrgContext);
 
 router.get('/', async (req, res) => {
+  const projectId = typeof req.query.projectId === 'string' ? req.query.projectId : null;
+  if (!projectId) {
+    return res.status(400).json({ message: 'projectId query parameter is required' });
+  }
+
   try {
     const [jobs, files, evaluations] = await Promise.all([
       trainingService.listJobs(req.org!.id, req.user!.id, req.membership!.role, req.isGlobalAdmin ?? false),
-      listFiles(req.user!.id),
+      listFiles(req.user!.id, projectId),
       listEvaluations(req.user!.id)
     ]);
 

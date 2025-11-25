@@ -1,55 +1,46 @@
 import type { LucideIcon } from 'lucide-react';
 import {
-  BadgeDollarSign,
   BookText,
   BrainCircuit,
   CreditCard,
-  FolderOpen,
+  FolderKanban,
   GaugeCircle,
-  Layers3,
   LayoutDashboard,
+  Layers3,
   Rocket,
   Settings,
-  Sparkles,
+  TableProperties,
   UsersRound
 } from 'lucide-react';
 
-export interface NavItem {
+export interface NavNode {
   title: string;
-  href: string;
-  icon: LucideIcon;
+  href?: string;
+  icon?: LucideIcon;
   badge?: string;
+  children?: NavNode[];
 }
 
-export interface NavSection {
-  title: string;
-  items: NavItem[];
-}
-
-export const primaryNav: NavSection[] = [
+export const navTree: NavNode[] = [
   {
     title: 'Workspace',
-    items: [
-      { title: 'Dashboard', href: '/', icon: LayoutDashboard },
+    children: [
+      { title: 'Overview', href: '/', icon: LayoutDashboard },
+      { title: 'Projects', href: '/projects', icon: FolderKanban },
+      { title: 'Datasets', href: '/data', icon: TableProperties },
       { title: 'Workflows', href: '/workflows', icon: BookText },
-      { title: 'Datasets', href: '/data', icon: FolderOpen },
       { title: 'Training Hub', href: '/training', icon: BrainCircuit, badge: 'live' },
       { title: 'Serve & Reinforce', href: '/deploy', icon: Rocket }
     ]
   },
   {
     title: 'Operations',
-    items: [
+    children: [
       { title: 'Users', href: '/users', icon: UsersRound },
       { title: 'Billing', href: '/billing', icon: CreditCard },
       { title: 'Credits', href: '/credits', icon: GaugeCircle },
+      { title: 'Datasets API', href: '/ingestions', icon: Layers3 },
       { title: 'Settings', href: '/settings', icon: Settings }
     ]
   }
-];
-
-export const quickActions = [
-  { title: 'Create dataset', icon: Layers3 },
-  { title: 'Distill rules', icon: Sparkles },
-  { title: 'Request credits', icon: BadgeDollarSign }
 ];

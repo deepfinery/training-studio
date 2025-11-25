@@ -25,7 +25,11 @@ export function EvaluationForm() {
         notes
       });
       setStatus('Evaluation recorded');
-      mutate('history');
+      mutate(
+        key => Array.isArray(key) && key[0] === 'history',
+        undefined,
+        { revalidate: true }
+      );
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Unable to record evaluation');
     } finally {

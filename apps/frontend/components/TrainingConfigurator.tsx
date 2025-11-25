@@ -12,6 +12,7 @@ import {
   TrainingMethod,
   TrainerJobSpec
 } from '../lib/api';
+import { useProjects } from './ProjectProvider';
 
 const methodOptions: { label: string; value: TrainingMethod; description: string }[] = [
   { label: 'QLoRA', value: 'qlora', description: '4-bit adapters for efficient GPUs' },
@@ -39,11 +40,19 @@ export function TrainingConfigurator() {
   const [gpus, setGpus] = useState(4);
   const [gpuType, setGpuType] = useState('A100');
   const [maxDuration, setMaxDuration] = useState(720);
-  const { data: files } = useSWR<FileRecord[]>('ingestion-files', () => fetchFiles('ingestion'), {
-    refreshInterval: 15000
-  });
+  const { activeProject } = useProjects();
+  const projectId = activeProject?.id;
+  const { data: files } = useSWR<FileRecord[]>(
+    projectId ? ['ingestion-files', projectId] : null,
+    () => fetchFiles('ingestion', projectId!),
+    { refreshInterval: 15000 }
+  );
   const { data: clusters } = useSWR<ClusterSummary[]>('clusters', fetchClusters, { refreshInterval: 30000 });
   const { data: orgContext } = useSWR('org-context', fetchOrgContext, { refreshInterval: 60000 });
+
+  useEffect(() => {
+    setDatasetKey(undefined);
+  }, [projectId]);
 
   useEffect(() => {
     if (files && files.length > 0 && !datasetKey) {
@@ -203,7 +212,7 @@ export function TrainingConfigurator() {
             className="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/40 px-3 py-2 text-white shadow-inner"
           />
         </label>
-        {files && files.length > 0 && (
+        {projectId && files && files.length > 0 && (
           <div className="text-sm text-slate-300">
             <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Recent uploads</p>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -223,6 +232,11 @@ export function TrainingConfigurator() {
               ))}
             </div>
           </div>
+        )}
+        {!projectId && (
+          <p className="text-xs text-amber-200">
+            Select or create a project to surface recent dataset uploads here.
+          </p>
         )}
         <label className="text-sm text-slate-200">
           Base model

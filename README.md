@@ -38,8 +38,8 @@ Follow the quick-starts below to run locally or with Docker. Infrastructure (Cog
    - Frontend: `cp apps/frontend/.env.example apps/frontend/.env`  
    Use the values from your provisioned AWS resources: Cognito user pool/client with the custom domain (e.g., `https://auth.studio.deepfinery.com`), redirect/logout URIs, S3 buckets, and DocumentDB URI/CA. For dev without Cognito, leave `ALLOW_DEV_AUTH=true` in backend `.env`.
 3) Run dev servers  
-   - Backend: `npm run dev:backend` (port 4000)  
-   - Frontend: `npm run dev:frontend` (port 3000, proxies `/api/*` to the backend defined by `BACKEND_INTERNAL_BASE`)
+   - Backend: `npm run dev:backend` (defaults to port 4050; adjust `PORT` in `apps/backend/.env` if you need a different local port)  
+   - Frontend: `npm run dev:frontend` (defaults to port 3050; update `PORT` in `apps/frontend/.env` or pass `-p` to `next dev`, it still proxies `/api/*` to the backend defined by `BACKEND_INTERNAL_BASE`)
 4) Production builds  
    - Backend: `npm run build:backend` then `node apps/backend/dist/server.js`  
    - Frontend: `npm run build:frontend` then `npm run start --prefix apps/frontend`
@@ -47,9 +47,9 @@ Follow the quick-starts below to run locally or with Docker. Infrastructure (Cog
 ### Docker Compose
 1) Ensure root `.env` exists (you can reuse backend/front env values here). Include AWS region, S3 buckets, Cognito IDs/custom domain/redirect, DocumentDB URI/CA path, `ALLOW_DEV_AUTH` if needed.  
 2) Build & run: `docker compose up --build`  
-   - Frontend: http://localhost:3000  
-   - Backend: http://localhost:4000
-   - Docs (Docusaurus): http://localhost:3050/docs/
+   - Frontend: http://localhost:3050 (override via `FRONTEND_HOST_PORT`)  
+   - Backend: http://localhost:4050 (override via `BACKEND_HOST_PORT`)
+   - Docs (Docusaurus): http://localhost:3150/docs/ (override via `DOCS_HOST_PORT`)
 3) Build images individually (optional)  
    - Backend: `docker build -f apps/backend/Dockerfile -t training-backend .`  
    - Frontend: `docker build -f apps/frontend/Dockerfile -t training-frontend .`
@@ -109,7 +109,7 @@ NEXT_PUBLIC_GOOGLE_IDP=Google
 Leave `NEXT_PUBLIC_API_BASE` empty to reuse the same origin; set it only if browsers must talk to a public API host directly.
 Add `STRIPE_SECRET_KEY` (backend) and `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (frontend) to turn on the billing UI; without them job launches that target the managed cluster will fail fast. You can also set `GLOBAL_ADMIN_IDS` (comma-separated Cognito sub IDs) to give platform operators cross-org access during support sessions.
 4) Deploy: `./scripts/deploy.sh` (rsyncs to `44.215.126.72` and runs `docker compose up -d --build`).  
-5) Verify: Backend at `http://44.215.126.72:4000`, Frontend at `http://44.215.126.72:3000`. Update the protocol/port if you terminate TLS elsewhere.
+5) Verify: Backend at `http://44.215.126.72:4050`, Frontend at `http://44.215.126.72:3050` (or whatever you set via `BACKEND_HOST_PORT`/`FRONTEND_HOST_PORT`). Update the protocol/port if you terminate TLS elsewhere.
 
 ## Scripts
 | Script | Description |
@@ -132,13 +132,13 @@ Copy these templates, fill Cognito + S3 + DocumentDB identifiers (or rely on Ter
 - `docker-compose.yml` runs both containers locally (`docker compose up --build`) with env wiring so the frontend proxies `/api/*` requests to the `backend` service.
 
 ## Deploying to an existing host
-1) Prereqs on the target host: Docker + Docker Compose installed, the TLS CA for DocumentDB available if needed, and security groups/firewall opened for ports 3000/4000 (or your chosen overrides).  
+1) Prereqs on the target host: Docker + Docker Compose installed, the TLS CA for DocumentDB available if needed, and security groups/firewall opened for the host ports you plan to expose (defaults: 3050 for the frontend, 4050 for the backend).  
 2) In this repo, create/update `.env` with your AWS values (region, S3 buckets, Cognito pool/client, custom Cognito domain such as `https://auth.studio.deepfinery.com`, redirect/logout URIs, DocumentDB URI/CA, AWS credentials) plus deployment settings:  
    - `DEPLOYMENT_HOST` (public IP or hostname of the VM)  
    - `DEPLOYMENT_SSH_PRIVATE_KEY` (path to the private key that matches the host)  
    - Optional: `DEPLOYMENT_SSH_USER` (default `ubuntu`), `DEPLOYMENT_SSH_PORT` (default `22`), `REMOTE_DEPLOY_PATH` (default `/opt/deepfinery`)  
 3) Run `./scripts/deploy.sh`. The script rsyncs the repo (including `.env`) to the host and runs `docker compose up -d --build` there.  
-4) Access the services: Backend `http://<DEPLOYMENT_HOST>:4000`, Frontend `http://<DEPLOYMENT_HOST>:3000`.
+4) Access the services: Backend `http://<DEPLOYMENT_HOST>:4050`, Frontend `http://<DEPLOYMENT_HOST>:3050` (override with `BACKEND_HOST_PORT` / `FRONTEND_HOST_PORT`).
 
 ## Environment Variables
 - `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`: Required for S3 dataset storage and EKS orchestration.
@@ -148,6 +148,7 @@ Copy these templates, fill Cognito + S3 + DocumentDB identifiers (or rely on Ter
 - `GLOBAL_ADMIN_IDS`: Comma-separated Cognito subject IDs that should bypass org boundaries (platform super-users).
 - `JOB_FLAT_RATE_USD`, `ORG_FREE_JOB_LIMIT`: Tune managed-cluster charge per job and customer-cluster free-tier thresholds.
 - `DEFAULT_MANAGED_CLUSTER_URL`, `DEFAULT_MANAGED_CLUSTER_TOKEN`, `DEFAULT_MANAGED_CLUSTER_PROVIDER`: Seed values for the managed `deepfinery-cluster`.
+- `BACKEND_HOST_PORT`, `FRONTEND_HOST_PORT`, `DOCS_HOST_PORT`: Control which host ports Docker Compose publishes (containers stay on 4000/3000/3050 internally so the services can talk to each other).
 - `PUBLIC_API_BASE_URL`, `PUBLIC_APP_URL`: Used to generate cluster callback URLs/webhooks for the trainer APIs.
 - Frontend-only: `NEXT_PUBLIC_API_BASE` (if the dashboard must hit a public backend) and `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (Stripe Elements). Without the publishable key the Billing page will show a warning.
 - `GCP_PROJECT`, `GCS_BUCKET`: Optional, for Vertex AI submissions.

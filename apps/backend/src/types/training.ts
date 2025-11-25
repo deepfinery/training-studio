@@ -41,6 +41,7 @@ export interface TrainerArtifacts {
   logUri?: string;
   statusStreamUrl?: string;
   outputUri?: string;
+  auth?: Record<string, string>;
 }
 
 export interface TrainerCallbacks {
@@ -69,8 +70,9 @@ export interface TrainingJob {
   id: string;
   orgId: string;
   userId: string;
+  projectId?: string;
   name?: string;
-  status: 'queued' | 'running' | 'succeeded' | 'failed';
+  status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
   method: TrainingMethod;
   datasetUri: string;
   datasetKey?: string;
@@ -92,5 +94,6 @@ export interface TrainingJob {
 export interface TrainingJobRequest {
   name?: string;
   clusterId: string;
+  projectId: string;
   spec: TrainerJobSpec;
 }

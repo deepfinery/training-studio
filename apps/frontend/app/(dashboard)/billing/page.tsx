@@ -16,6 +16,7 @@ import {
 } from '../../../lib/api';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '');
+const billingPortalUrl = process.env.NEXT_PUBLIC_STRIPE_PORTAL_URL;
 
 function BillingContent() {
   const { data: overview } = useSWR<BillingOverview>('billing-overview', fetchBillingOverview);
@@ -115,33 +116,47 @@ function BillingContent() {
 
   return (
     <div className="space-y-6">
-      <header className="glass-panel rounded-3xl border border-white/5 p-6">
-        <p className="text-sm uppercase tracking-[0.35em] text-brand-200">Billing</p>
-        <h1 className="text-3xl font-semibold text-white">Plan & payments</h1>
-        <p className="text-slate-300">Cards, promo credits, and per-job charges. DeepFinery clusters are $50/run; customer clusters are free up to 100 jobs.</p>
+      <header className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-blue-500">Billing</p>
+        <h1 className="text-3xl font-semibold text-slate-900">Plan & payments</h1>
+        <p className="text-slate-500">Cards, promo credits, and per-job charges. DeepFinery clusters are $50/run; customer clusters are free up to 100 jobs.</p>
       </header>
       <div className="grid gap-6 lg:grid-cols-3">
-        <article className="glass-panel rounded-3xl border border-white/5 p-6 lg:col-span-2">
-          <h2 className="text-xl font-semibold text-white">Payment methods</h2>
+        <article className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold text-slate-900">Payment methods</h2>
+              <p className="text-sm text-slate-500">Manage the cards used for DeepFinery job charges.</p>
+            </div>
+            {billingPortalUrl && (
+              <button
+                type="button"
+                onClick={() => window.open(billingPortalUrl, '_blank')}
+                className="rounded-md border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-blue-400 hover:text-blue-600"
+              >
+                Pay in Stripe
+              </button>
+            )}
+          </div>
           <div className="mt-4 space-y-3">
             {paymentMethods.map(method => (
-              <div key={method.id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-3 text-sm text-slate-200">
+              <div key={method.id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
                 <div>
-                  <p className="font-semibold text-white">{method.brand?.toUpperCase()} •••• {method.last4}</p>
+                  <p className="font-semibold text-slate-900">{method.brand?.toUpperCase()} •••• {method.last4}</p>
                   <p className="text-xs text-slate-500">Expires {method.expMonth}/{method.expYear}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   {!method.isDefault && (
                     <button
                       onClick={() => handleMakeDefault(method.id)}
-                      className="rounded-xl border border-white/10 px-3 py-1 text-xs text-slate-200 hover:border-brand-400"
+                      className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 hover:border-blue-400 hover:text-blue-600"
                     >
                       Make default
                     </button>
                   )}
                   <button
                     onClick={() => handleRemoveMethod(method.id)}
-                    className="rounded-xl border border-white/10 px-3 py-1 text-xs text-rose-200 hover:border-rose-400"
+                    className="rounded-full border border-rose-200 px-3 py-1 text-xs font-semibold text-rose-600 hover:border-rose-400"
                   >
                     Remove
                   </button>
@@ -149,7 +164,7 @@ function BillingContent() {
               </div>
             ))}
             {paymentMethods.length === 0 && (
-              <p className="rounded-2xl border border-dashed border-white/10 px-4 py-6 text-center text-sm text-slate-400">
+              <p className="rounded-lg border border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-500">
                 No cards on file. A valid card is required even for free-tier launches.
               </p>
             )}
@@ -158,58 +173,58 @@ function BillingContent() {
             <CardElement
               options={{
                 style: {
-                  base: { color: 'white', fontSize: '16px', '::placeholder': { color: '#94a3b8' } }
+                  base: { color: '#0f172a', fontSize: '15px', '::placeholder': { color: '#94a3b8' } }
                 }
               }}
-              className="rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-3"
+              className="rounded-lg border border-slate-200 bg-white px-4 py-3"
             />
             <button
               onClick={handleAddCard}
               disabled={cardBusy || !stripe}
-              className="rounded-2xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-70"
+              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-70"
             >
               {cardBusy ? 'Saving…' : 'Add card'}
             </button>
-            {cardStatus && <p className="text-sm text-slate-300">{cardStatus}</p>}
+            {cardStatus && <p className="text-sm text-slate-600">{cardStatus}</p>}
           </div>
         </article>
-        <article className="glass-panel rounded-3xl border border-white/5 p-6 space-y-4">
+        <article className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Promo & free tier</p>
-            <p className="text-3xl font-semibold text-white">{overview?.promoCredits ?? 0} credits</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Promo & free tier</p>
+            <p className="text-3xl font-semibold text-slate-900">{overview?.promoCredits ?? 0} credits</p>
             <p className="text-xs text-slate-500">{overview?.freeJobsRemaining ?? 0} customer-cluster jobs remaining</p>
           </div>
-          <div className="space-y-2 text-sm text-slate-300">
+          <div className="space-y-2 text-sm text-slate-600">
             <input
               type="text"
               value={promoCode}
               onChange={event => setPromoCode(event.target.value)}
               placeholder="Promo code"
-              className="w-full rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-2 text-white"
+              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900"
             />
             <button
               onClick={handlePromo}
-              className="w-full rounded-2xl border border-white/10 px-4 py-2 text-sm text-slate-200 hover:border-brand-400"
+              className="w-full rounded-md border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-blue-400 hover:text-blue-600"
             >
               Apply promo
             </button>
-            {promoStatus && <p className="text-xs text-slate-400">{promoStatus}</p>}
+            {promoStatus && <p className="text-xs text-slate-500">{promoStatus}</p>}
           </div>
-          <div className="space-y-2 text-sm text-slate-300">
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Billing address</p>
+          <div className="space-y-2 text-sm text-slate-600">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Billing address</p>
             <input
               type="text"
               placeholder="Line 1"
               value={address?.line1 ?? ''}
               onChange={event => setAddress(prev => ({ ...prev, line1: event.target.value }))}
-              className="w-full rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-2 text-white"
+              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900"
             />
             <input
               type="text"
               placeholder="Line 2"
               value={address?.line2 ?? ''}
               onChange={event => setAddress(prev => ({ ...prev, line2: event.target.value }))}
-              className="w-full rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-2 text-white"
+              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900"
             />
             <div className="grid grid-cols-2 gap-2">
               <input
@@ -217,14 +232,14 @@ function BillingContent() {
                 placeholder="City"
                 value={address?.city ?? ''}
                 onChange={event => setAddress(prev => ({ ...prev, city: event.target.value }))}
-                className="rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-2 text-white"
+                className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900"
               />
               <input
                 type="text"
                 placeholder="State"
                 value={address?.state ?? ''}
                 onChange={event => setAddress(prev => ({ ...prev, state: event.target.value }))}
-                className="rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-2 text-white"
+                className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900"
               />
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -233,23 +248,23 @@ function BillingContent() {
                 placeholder="Postal code"
                 value={address?.postalCode ?? ''}
                 onChange={event => setAddress(prev => ({ ...prev, postalCode: event.target.value }))}
-                className="rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-2 text-white"
+                className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900"
               />
               <input
                 type="text"
                 placeholder="Country"
                 value={address?.country ?? ''}
                 onChange={event => setAddress(prev => ({ ...prev, country: event.target.value }))}
-                className="rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-2 text-white"
+                className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900"
               />
             </div>
             <button
               onClick={handleAddressUpdate}
-              className="w-full rounded-2xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white"
+              className="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500"
             >
               Save billing address
             </button>
-            {addressStatus && <p className="text-xs text-slate-400">{addressStatus}</p>}
+            {addressStatus && <p className="text-xs text-slate-500">{addressStatus}</p>}
           </div>
         </article>
       </div>
@@ -261,9 +276,9 @@ export default function BillingPage() {
   if (!stripePromise) {
     return (
       <div className="space-y-6">
-        <header className="glass-panel rounded-3xl border border-white/5 p-6">
-          <h1 className="text-3xl font-semibold text-white">Billing</h1>
-          <p className="text-slate-300">Stripe publishable key missing. Set NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.</p>
+        <header className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h1 className="text-3xl font-semibold text-slate-900">Billing</h1>
+          <p className="text-slate-500">Stripe publishable key missing. Set NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.</p>
         </header>
       </div>
     );

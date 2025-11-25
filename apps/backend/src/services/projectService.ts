@@ -48,12 +48,12 @@ async function ensureUniqueSlug(userId: string, base: string) {
   return slug;
 }
 
-async function putPlaceholder(key: string) {
-  if (!env.S3_DATA_BUCKET) return;
+async function putPlaceholderInBucket(bucket: string | undefined, key: string) {
+  if (!bucket) return;
   try {
     await s3.send(
       new PutObjectCommand({
-        Bucket: env.S3_DATA_BUCKET,
+        Bucket: bucket,
         Key: key,
         Body: '',
         ContentType: 'application/octet-stream'
@@ -65,12 +65,13 @@ async function putPlaceholder(key: string) {
 }
 
 async function ensureUserStorageNamespace(userId: string) {
-  await putPlaceholder(`users/${userId}/.keep`);
+  await putPlaceholderInBucket(env.S3_DATA_BUCKET, `users/${userId}/.keep`);
 }
 
 async function ensureProjectStorageNamespace(userId: string, projectId: string) {
   await ensureUserStorageNamespace(userId);
-  await putPlaceholder(`users/${userId}/projects/${projectId}/.keep`);
+  await putPlaceholderInBucket(env.S3_DATA_BUCKET, `users/${userId}/projects/${projectId}/.keep`);
+  await putPlaceholderInBucket(env.S3_MODEL_BUCKET, `projects/${projectId}/.keep`);
 }
 
 export async function listProjects(userId: string) {

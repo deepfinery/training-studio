@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -53,62 +54,63 @@ export default function LoginPage() {
         <div className="space-y-2">
           <p>
             Need an account?{' '}
-            <Link href="/register" className="text-brand-200 hover:text-brand-100">
+            <Link href="/register" className="text-blue-600 hover:text-blue-500">
               Create one
             </Link>
           </p>
-          <Link href="/forgot-password" className="text-brand-200 hover:text-brand-100">
+          <Link href="/forgot-password" className="text-blue-600 hover:text-blue-500">
             Forgot password?
           </Link>
         </div>
       }
     >
-      <form className="space-y-4" onSubmit={handleSubmit}>
-        <label className="text-sm text-slate-300">
+      <form className="space-y-5" onSubmit={handleSubmit}>
+        <label className="text-sm font-medium text-slate-700">
           Email address
           <input
             type="email"
             value={email}
             onChange={event => setEmail(event.target.value)}
             placeholder="you@enterprise.com"
-            className="mt-1 w-full rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-3 text-white"
+            className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
           />
         </label>
-        <label className="text-sm text-slate-300">
+        <label className="text-sm font-medium text-slate-700">
           Password
           <input
             type="password"
             value={password}
             onChange={event => setPassword(event.target.value)}
-            className="mt-1 w-full rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-3 text-white"
+            className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
           />
         </label>
-        <div className="flex items-center justify-between text-xs text-slate-400">
-          <label className="inline-flex items-center gap-2">
-            <input type="checkbox" className="h-4 w-4 rounded border-white/20 bg-transparent" />
+        <div className="flex items-center justify-between text-xs text-slate-500">
+          <label className="inline-flex items-center gap-2 text-slate-600">
+            <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
             Remember me
           </label>
-          <Link href="/change-password" className="text-brand-200 hover:text-brand-100">
+          <Link href="/change-password" className="text-blue-600 hover:text-blue-500">
             Change password
           </Link>
         </div>
         <button
           type="submit"
           disabled={busy}
-          className="w-full rounded-2xl bg-brand-500 py-3 text-sm font-semibold uppercase tracking-wide text-white shadow-lg shadow-brand-500/40 disabled:opacity-70"
+          className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 disabled:opacity-60"
         >
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
         <button
           type="button"
           onClick={handleGoogle}
-          className="w-full rounded-2xl border border-white/10 bg-slate-900/60 py-3 text-sm font-semibold text-slate-100 transition hover:border-brand-400"
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
         >
-          Continue with Google SSO
+          <Image src="/google-icon.svg" alt="Google logo" width={18} height={18} />
+          Continue with Google
         </button>
-        {status && <p className="text-sm text-rose-200">{status}</p>}
+        {status && <p className="text-sm text-rose-600">{status}</p>}
       </form>
     </AuthCard>
   );

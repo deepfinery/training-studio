@@ -85,6 +85,23 @@ export class ProfileService {
     this.memory.set(userId, updated);
     return updated;
   }
+
+  async getProfiles(userIds: string[]): Promise<UserProfile[]> {
+    const ids = Array.from(new Set(userIds.filter(Boolean)));
+    if (ids.length === 0) {
+      return [];
+    }
+
+    const collection = await this.collection();
+    if (collection) {
+      const docs = await collection.find({ userId: { $in: ids } }).toArray();
+      return docs.map(normalize);
+    }
+
+    return ids
+      .map(id => this.memory.get(id))
+      .filter((profile): profile is UserProfile => Boolean(profile));
+  }
 }
 
 export const profileService = new ProfileService();

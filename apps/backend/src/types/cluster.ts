@@ -19,5 +19,10 @@ export interface Cluster {
   metadata?: {
     gpuType?: string;
     region?: string;
+    authHeaderName?: string;
+    s3AccessKeyId?: string;
+    s3SecretAccessKey?: string;
+    s3SessionToken?: string;
+    s3Region?: string;
   };
 }

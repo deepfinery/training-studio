@@ -6,31 +6,43 @@ const runtimes = [
 export default function DeployPage() {
   return (
     <div className="space-y-6">
-      <header className="glass-panel rounded-3xl border border-white/5 p-6">
-        <p className="text-sm uppercase tracking-[0.35em] text-brand-200">Serve & reinforce</p>
-        <h1 className="text-3xl font-semibold text-white">Manage vLLM runtimes and reinforcement jobs</h1>
-        <p className="text-slate-300">Promote adapters, issue blue/green deployments, and ship portable containers.</p>
+      <header className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-blue-500">Serve & reinforce</p>
+            <h1 className="text-3xl font-semibold text-slate-900">Manage runtimes & reinforcement</h1>
+            <p className="text-slate-500">Deployment orchestration is almost here. Track the planned targets below while we wire up promotion flows.</p>
+          </div>
+          <span className="rounded-full bg-amber-100 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-amber-700">Coming soon</span>
+        </div>
       </header>
-      <div className="grid gap-4 lg:grid-cols-2">
+      <section className="grid gap-4 lg:grid-cols-2">
         {runtimes.map(runtime => (
-          <article key={runtime.name} className="glass-panel rounded-3xl border border-white/5 p-5">
-            <h2 className="text-xl font-semibold text-white">{runtime.name}</h2>
-            <p className="text-sm text-slate-400">Status: {runtime.status}</p>
-            <div className="mt-4 flex items-center justify-between text-sm text-slate-300">
-              <p>{runtime.requests}</p>
-              <p>{runtime.latency}</p>
-            </div>
-            <div className="mt-5 flex gap-3">
-              <button className="flex-1 rounded-2xl border border-white/10 px-4 py-2 text-sm text-slate-200 hover:border-brand-400">
+          <article key={runtime.name} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-xl font-semibold text-slate-900">{runtime.name}</h2>
+            <p className="text-sm text-slate-500">Status: {runtime.status}</p>
+            <dl className="mt-4 grid grid-cols-2 gap-3 text-sm text-slate-600">
+              <div>
+                <dt className="text-xs uppercase tracking-wide text-slate-500">Requests</dt>
+                <dd className="text-base font-semibold text-slate-900">{runtime.requests}</dd>
+              </div>
+              <div>
+                <dt className="text-xs uppercase tracking-wide text-slate-500">Latency</dt>
+                <dd className="text-base font-semibold text-slate-900">{runtime.latency}</dd>
+              </div>
+            </dl>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <button className="flex-1 rounded-md border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-blue-400 hover:text-blue-600">
                 Download container
               </button>
-              <button className="flex-1 rounded-2xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white">
+              <button className="flex-1 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500">
                 Reinforce model
               </button>
             </div>
+            <p className="mt-3 text-xs text-slate-500">Automation hooks will enable staging → prod promotions and RLHF pipelines soon.</p>
           </article>
         ))}
-      </div>
+      </section>
     </div>
   );
 }

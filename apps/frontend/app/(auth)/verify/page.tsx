@@ -12,7 +12,7 @@ const cardCopy = {
   footer: (
     <p>
       Already verified?{' '}
-      <Link href="/login" className="text-brand-200 hover:text-brand-100">
+      <Link href="/login" className="text-blue-600 hover:text-blue-500">
         Sign in
       </Link>
     </p>
@@ -52,36 +52,36 @@ function VerifyAccountContent() {
 
   return (
     <CardShell>
-      <form className="space-y-4" onSubmit={handleSubmit}>
-        <label className="text-sm text-slate-300">
+      <form className="space-y-5" onSubmit={handleSubmit}>
+        <label className="text-sm font-medium text-slate-700">
           Company email
           <input
             type="email"
             value={email}
             onChange={event => setEmail(event.target.value)}
-            className="mt-1 w-full rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-3 text-white"
+            className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
           />
         </label>
-        <label className="text-sm text-slate-300">
+        <label className="text-sm font-medium text-slate-700">
           Verification code
           <input
             type="text"
             inputMode="numeric"
             value={code}
             onChange={event => setCode(event.target.value)}
-            className="mt-1 tracking-[0.4em] w-full rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-3 text-center text-lg font-semibold text-white"
+            className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-center text-lg font-semibold tracking-[0.4em] text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
           />
         </label>
         <button
           type="submit"
           disabled={busy}
-          className="w-full rounded-2xl bg-brand-500 py-3 text-sm font-semibold uppercase tracking-wide text-white disabled:opacity-70"
+          className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 disabled:opacity-60"
         >
           {busy ? 'Verifying…' : 'Verify email'}
         </button>
-        {status && <p className="text-sm text-rose-200">{status}</p>}
+        {status && <p className="text-sm text-rose-600">{status}</p>}
       </form>
     </CardShell>
   );

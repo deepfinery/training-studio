@@ -4,7 +4,9 @@ import { getCollection } from '../config/database';
 import { env } from '../config/env';
 import { AuthenticatedUser } from '../types/auth';
 import { Org, OrgContext, OrgMembership, OrgRole } from '../types/org';
+import { UserProfile } from '../types/profile';
 import { clusterService } from './clusterService';
+import { profileService } from './profileService';
 
 type OrgDocument = Org & { _id?: ObjectId };
 type MembershipDocument = OrgMembership & { _id?: ObjectId };
@@ -139,6 +141,31 @@ class OrgService {
     return normalized;
   }
 
+  async updateProfile(orgId: string, profile: { name?: string; slug?: string }) {
+    const patch: Partial<Org> = {};
+    if (profile.name) {
+      patch.name = profile.name.trim();
+    }
+
+    if (profile.slug) {
+      const nextSlug = slugify(profile.slug);
+      const orgs = await this.orgsCollection();
+      const conflict = await orgs.findOne({ slug: nextSlug, id: { $ne: orgId } });
+      if (conflict) {
+        throw new Error('Slug already in use');
+      }
+      patch.slug = nextSlug;
+    }
+
+    if (Object.keys(patch).length === 0) {
+      const existing = await this.loadOrg(orgId);
+      if (!existing) throw new Error('Org not found');
+      return existing;
+    }
+
+    return this.updateOrg(orgId, patch);
+  }
+
   async incrementFreeJobs(orgId: string, delta: number): Promise<Org> {
     const orgs = await this.orgsCollection();
     const now = new Date().toISOString();
@@ -156,6 +183,19 @@ class OrgService {
 
   async updateDefaultCluster(orgId: string, clusterId: string) {
     await this.updateOrg(orgId, { defaultClusterId: clusterId });
+  }
+
+  async listMembers(orgId: string): Promise<Array<OrgMembership & { profile?: UserProfile }>> {
+    const memberships = await this.membershipsCollection();
+    const docs = await memberships.find({ orgId }).sort({ createdAt: 1 }).toArray();
+    const normalized = docs.map(normalizeMembership);
+    if (normalized.length === 0) {
+      return [];
+    }
+
+    const profiles = await profileService.getProfiles(normalized.map(member => member.userId));
+    const profileMap = new Map(profiles.map(profile => [profile.userId, profile]));
+    return normalized.map(member => ({ ...member, profile: profileMap.get(member.userId) }));
   }
 }
 

@@ -9,20 +9,24 @@ export default function ForgotPasswordPage() {
       footer={
         <p>
           Remembered your password?{' '}
-          <Link href="/login" className="text-brand-200 hover:text-brand-100">
+          <Link href="/login" className="text-blue-600 hover:text-blue-500">
             Return to login
           </Link>
         </p>
       }
     >
-      <form className="space-y-4">
-        <label className="text-sm text-slate-300">
+      <form className="space-y-5">
+        <label className="text-sm font-medium text-slate-700">
           Company email
-          <input type="email" className="mt-1 w-full rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-3 text-white" />
+          <input
+            type="email"
+            className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          />
         </label>
         <button
           type="submit"
-          className="w-full rounded-2xl bg-brand-500 py-3 text-sm font-semibold uppercase tracking-wide text-white"
+          className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500"
         >
           Send reset link
         </button>

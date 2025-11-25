@@ -35,6 +35,7 @@ export interface TrainerJobSpec {
     logUri?: string;
     statusStreamUrl?: string;
     outputUri?: string;
+    auth?: Record<string, string>;
   };
   tuningParameters?: Record<string, unknown>;
   callbacks?: {
@@ -53,7 +54,7 @@ export interface BillingRecord {
 }
 
 export interface TrainingJobStatusEntry {
-  status: 'queued' | 'running' | 'succeeded' | 'failed';
+  status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
   at: string;
   message?: string;
 }
@@ -61,10 +62,11 @@ export interface TrainingJobStatusEntry {
 export interface TrainingJob {
   id: string;
   name?: string;
-  status: 'queued' | 'running' | 'succeeded' | 'failed';
+  status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
   method: TrainingMethod;
   datasetUri: string;
   outputUri: string;
+  projectId?: string;
   createdAt: string;
   updatedAt: string;
   clusterId: string;
@@ -111,6 +113,18 @@ export interface EvaluationRecord {
   updatedAt: string;
 }
 
+export interface IngestionRecord {
+  id?: string;
+  name: string;
+  description?: string;
+  sourceType: string;
+  status?: string;
+  fileKey: string;
+  tags?: string[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface ProjectRecord {
   id: string;
   name: string;
@@ -149,6 +163,7 @@ export async function fetchJobs(): Promise<TrainingJob[]> {
 export interface CreateJobInput {
   name?: string;
   clusterId: string;
+  projectId: string;
   spec: TrainerJobSpec;
 }
 
@@ -159,6 +174,25 @@ export async function createJob(body: CreateJobInput) {
     body: JSON.stringify(body)
   });
   return parseResponse<TrainingJob>(res);
+}
+
+export async function cancelTrainingJob(jobId: string) {
+  const res = await fetch(apiUrl(`/api/training/${jobId}/cancel`), {
+    method: 'POST',
+    headers: { ...authHeaders() }
+  });
+  return parseResponse<TrainingJob>(res);
+}
+
+export async function deleteTrainingJob(jobId: string) {
+  const res = await fetch(apiUrl(`/api/training/${jobId}`), {
+    method: 'DELETE',
+    headers: { ...authHeaders() }
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message ?? 'Unable to delete job');
+  }
 }
 
 export async function requestUpload(body: {
@@ -293,6 +327,15 @@ export interface UserProfile {
   updatedAt: string;
 }
 
+export interface OrgMemberSummary {
+  id: string;
+  userId: string;
+  role: 'admin' | 'standard';
+  createdAt: string;
+  updatedAt: string;
+  profile?: UserProfile;
+}
+
 export async function recordEvaluation(body: { jobId?: string; fileKey?: string; score?: number; label?: string; notes?: string }) {
   const res = await fetch(apiUrl('/api/evaluations'), {
     method: 'POST',
@@ -313,6 +356,12 @@ export async function fetchHistory(
     cache: 'no-store'
   });
   return parseResponse(res);
+}
+
+export async function fetchIngestions(): Promise<IngestionRecord[]> {
+  const res = await fetch(apiUrl('/api/ingestions'), { headers: { ...authHeaders() }, cache: 'no-store' });
+  const payload = await parseResponse<{ ingestions: IngestionRecord[] }>(res);
+  return payload.ingestions ?? [];
 }
 
 export async function registerAccount(body: { email: string; password: string; name?: string }) {
@@ -402,6 +451,9 @@ export interface ClusterSummary {
   metadata?: {
     gpuType?: string;
     region?: string;
+    authHeaderName?: string;
+    s3Region?: string;
+    hasS3Credentials?: boolean;
   };
 }
 
@@ -411,7 +463,19 @@ export async function fetchClusters(): Promise<ClusterSummary[]> {
   return payload.clusters ?? [];
 }
 
-export async function createClusterRequest(body: { name: string; provider: ClusterSummary['provider']; apiBaseUrl: string; apiToken: string; gpuType?: string; region?: string }) {
+export async function createClusterRequest(body: {
+  name: string;
+  provider: ClusterSummary['provider'];
+  apiBaseUrl: string;
+  apiToken: string;
+  authHeaderName?: string;
+  gpuType?: string;
+  region?: string;
+  s3AccessKeyId?: string;
+  s3SecretAccessKey?: string;
+  s3SessionToken?: string;
+  s3Region?: string;
+}) {
   const res = await fetch(apiUrl('/api/clusters'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
@@ -420,13 +484,39 @@ export async function createClusterRequest(body: { name: string; provider: Clust
   return parseResponse<{ cluster: ClusterSummary }>(res);
 }
 
-export async function updateClusterRequest(clusterId: string, body: Partial<{ name: string; provider: ClusterSummary['provider']; apiBaseUrl: string; apiToken: string; gpuType?: string; region?: string }>) {
+export async function updateClusterRequest(
+  clusterId: string,
+  body: Partial<{
+    name: string;
+    provider: ClusterSummary['provider'];
+    apiBaseUrl: string;
+    apiToken: string;
+    authHeaderName?: string;
+    gpuType?: string;
+    region?: string;
+    s3AccessKeyId?: string;
+    s3SecretAccessKey?: string;
+    s3SessionToken?: string;
+    s3Region?: string;
+  }>
+) {
   const res = await fetch(apiUrl(`/api/clusters/${clusterId}`), {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(body)
   });
   return parseResponse<{ cluster: ClusterSummary }>(res);
+}
+
+export async function deleteCluster(clusterId: string) {
+  const res = await fetch(apiUrl(`/api/clusters/${clusterId}`), {
+    method: 'DELETE',
+    headers: { ...authHeaders() }
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message ?? 'Unable to delete cluster');
+  }
 }
 
 export interface OrgContext {
@@ -447,6 +537,12 @@ export interface OrgContext {
 export async function fetchOrgContext(): Promise<OrgContext> {
   const res = await fetch(apiUrl('/api/org/context'), { headers: { ...authHeaders() }, cache: 'no-store' });
   return parseResponse<OrgContext>(res);
+}
+
+export async function fetchOrgMembers(): Promise<OrgMemberSummary[]> {
+  const res = await fetch(apiUrl('/api/org/members'), { headers: { ...authHeaders() }, cache: 'no-store' });
+  const payload = await parseResponse<{ members: OrgMemberSummary[] }>(res);
+  return payload.members ?? [];
 }
 
 export async function fetchProjects(): Promise<ProjectRecord[]> {
@@ -479,6 +575,15 @@ export async function setDefaultCluster(clusterId: string) {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ clusterId })
+  });
+  return parseResponse<{ org: OrgContext['org'] }>(res);
+}
+
+export async function updateOrgProfile(body: { name?: string; slug?: string }) {
+  const res = await fetch(apiUrl('/api/org/profile'), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(body)
   });
   return parseResponse<{ org: OrgContext['org'] }>(res);
 }

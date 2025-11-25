@@ -5,6 +5,7 @@ import { withOrgContext } from '../middleware/orgMiddleware';
 import { billingService } from '../services/billingService';
 import { clusterService } from '../services/clusterService';
 import { trainingService } from '../services/trainingService';
+import { getProject } from '../services/projectService';
 
 const router = Router();
 
@@ -66,6 +67,7 @@ const trainerSpecSchema = z.object({
 const createJobSchema = z.object({
   name: z.string().optional(),
   clusterId: z.string().min(1),
+  projectId: z.string().min(1),
   spec: trainerSpecSchema
 });
 
@@ -96,12 +98,18 @@ router.post('/', async (req, res) => {
     return res.status(404).json({ message: 'Cluster not found' });
   }
 
+  const project = await getProject(req.user!.id, parsed.data.projectId);
+  if (!project) {
+    return res.status(404).json({ message: 'Project not found' });
+  }
+
   let jobId: string | undefined;
   try {
     const plan = await billingService.planJobCharge(req.org!, cluster);
     const job = await trainingService.createJob({
       orgId: req.org!.id,
       userId: req.user!.id,
+      projectId: project.id!,
       request: parsed.data,
       cluster
     });
@@ -120,7 +128,7 @@ router.post('/', async (req, res) => {
 
 router.post('/:jobId/status', async (req, res) => {
   const schema = z.object({
-    status: z.enum(['queued', 'running', 'succeeded', 'failed']),
+    status: z.enum(['queued', 'running', 'succeeded', 'failed', 'cancelled']),
     log: z.string().optional()
   });
   const parsed = schema.safeParse(req.body);
@@ -144,13 +152,41 @@ router.post('/:jobId/status', async (req, res) => {
   res.json(updated);
 });
 
+router.post('/:jobId/cancel', async (req, res) => {
+  const job = await trainingService.cancelJob(
+    req.org!.id,
+    req.params.jobId,
+    req.user!.id,
+    req.membership!.role,
+    req.isGlobalAdmin ?? false
+  );
+  if (!job) {
+    return res.status(404).json({ message: 'Job not found' });
+  }
+  res.json(job);
+});
+
+router.delete('/:jobId', async (req, res) => {
+  const removed = await trainingService.deleteJob(
+    req.org!.id,
+    req.params.jobId,
+    req.user!.id,
+    req.membership!.role,
+    req.isGlobalAdmin ?? false
+  );
+  if (!removed) {
+    return res.status(404).json({ message: 'Job not found' });
+  }
+  res.status(204).end();
+});
+
 export default router;
 
 export const trainingWebhookRouter = Router();
 
 trainingWebhookRouter.post('/webhooks/:jobId', async (req, res) => {
   const schema = z.object({
-    status: z.enum(['queued', 'running', 'succeeded', 'failed']),
+    status: z.enum(['queued', 'running', 'succeeded', 'failed', 'cancelled']),
     log: z.string().optional()
   });
 

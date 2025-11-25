@@ -7,11 +7,22 @@ import { ChevronDown, LogOut, Search, Settings, User } from 'lucide-react';
 import { clearTokens, currentUser } from '../lib/auth';
 import { ProjectSelector } from './ProjectSelector';
 
+function initialsFrom(name?: string, email?: string) {
+  const source = name?.trim() || email?.split('@')[0] || '';
+  if (!source) return 'ME';
+  const parts = source.split(/\s+/).filter(Boolean);
+  if (parts.length === 1) {
+    return parts[0]!.slice(0, 2).toUpperCase();
+  }
+  return `${parts[0]![0] ?? ''}${parts[parts.length - 1]![0] ?? ''}`.toUpperCase();
+}
+
 export function TopBar() {
   const [query, setQuery] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [userLabel, setUserLabel] = useState('Authenticated');
   const [userEmail, setUserEmail] = useState<string | undefined>();
+  const [initials, setInitials] = useState('ME');
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -19,6 +30,7 @@ export function TopBar() {
     const info = currentUser();
     if (info?.name) setUserLabel(info.name);
     if (info?.email) setUserEmail(info.email);
+    setInitials(initialsFrom(info?.name, info?.email));
 
     const listener = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -38,35 +50,37 @@ export function TopBar() {
 
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-6 py-4 md:flex-row md:items-center md:gap-6">
-        <div className="flex w-full flex-col gap-3 md:flex-1 md:flex-row md:items-center">
+      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-4 px-6 py-4 lg:flex-nowrap">
+        <div className="w-full max-w-sm flex-shrink-0">
           <ProjectSelector />
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input
-              type="search"
-              value={query}
-              onChange={event => setQuery(event.target.value)}
-              placeholder="Search datasets, assets, or jobs"
-              className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm text-slate-900 shadow-sm placeholder:text-slate-400"
-            />
-          </div>
         </div>
-        <div className="flex items-center justify-end">
+        <div className="relative flex-1 min-w-[180px]">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            type="search"
+            value={query}
+            onChange={event => setQuery(event.target.value)}
+            placeholder="Search datasets, assets, or jobs"
+            className="w-full rounded-full border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm text-slate-900 shadow-sm placeholder:text-slate-400"
+          />
+        </div>
+        <div className="flex flex-shrink-0 items-center justify-end">
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setMenuOpen(open => !open)}
-              className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm transition hover:border-blue-400"
+              className="flex items-center gap-3 rounded-full border border-slate-200 bg-white px-3 py-2 text-left shadow-sm transition hover:border-blue-400"
             >
               <div>
                 <p className="text-xs text-slate-500">{userEmail ?? 'Logged in'}</p>
                 <p className="text-sm font-semibold text-slate-900">{userLabel}</p>
               </div>
-              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white">
+                {initials}
+              </div>
               <ChevronDown className="h-4 w-4 text-slate-500" />
             </button>
             {menuOpen && (
-              <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 bg-white p-2 shadow-2xl shadow-black/10">
+              <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
                 <Link
                   href="/profile"
                   className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"

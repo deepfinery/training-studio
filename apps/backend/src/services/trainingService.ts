@@ -82,8 +82,27 @@ export class TrainingService {
     return undefined;
   }
 
+  private buildS3Auth(cluster: Cluster) {
+    const meta = cluster.metadata;
+    if (!meta?.s3AccessKeyId || !meta.s3SecretAccessKey) {
+      return undefined;
+    }
+    return {
+      aws_access_key_id: meta.s3AccessKeyId,
+      aws_secret_access_key: meta.s3SecretAccessKey,
+      ...(meta.s3SessionToken ? { aws_session_token: meta.s3SessionToken } : {}),
+      aws_region: meta.s3Region ?? env.AWS_REGION
+    };
+  }
+
   private buildJobSpec(jobId: string, spec: TrainerJobSpec, cluster: Cluster): TrainerJobSpec {
     const callbackUrl = `${env.PUBLIC_API_BASE_URL.replace(/\/$/, '')}/api/training/webhooks/${jobId}`;
+    const s3Auth = this.buildS3Auth(cluster);
+    const datasets = spec.datasets.map(dataset => ({
+      ...dataset,
+      auth: dataset.auth ?? s3Auth
+    }));
+    const artifactAuth = spec.artifacts.auth ?? s3Auth;
     return {
       ...spec,
       jobId: spec.jobId ?? jobId,
@@ -93,13 +112,15 @@ export class TrainingService {
         logUri: spec.artifacts.logUri ?? spec.artifacts.outputUri,
         outputUri:
           spec.artifacts.outputUri ??
-          `s3://${env.S3_MODEL_BUCKET}/${cluster.orgId}/${jobId}/model-artifacts`
+          `s3://${env.S3_MODEL_BUCKET}/${cluster.orgId}/${jobId}/model-artifacts`,
+        ...(artifactAuth ? { auth: artifactAuth } : {})
       },
       callbacks: {
         ...(spec.callbacks ?? {}),
         webhookUrl: callbackUrl,
         authHeader: spec.callbacks?.authHeader ?? (cluster.apiToken ? `Bearer ${cluster.apiToken}` : undefined)
-      }
+      },
+      datasets
     };
   }
 
@@ -110,22 +131,26 @@ export class TrainingService {
   async createJob(params: {
     orgId: string;
     userId: string;
+    projectId: string;
     request: TrainingJobRequest;
     cluster: Cluster;
   }): Promise<TrainingJob> {
-    const { orgId, userId, request, cluster } = params;
+    const { orgId, userId, projectId, request, cluster } = params;
     const now = new Date().toISOString();
     const jobId = uuid();
     const jobSpec = this.buildJobSpec(jobId, request.spec, cluster);
     const datasetUri = this.deriveDatasetUri(jobSpec);
+    const datasetKey = datasetUri.startsWith('s3://') ? datasetUri.replace(/^s3:\/\/(?:[^/]+)\//, '') : undefined;
     const job: TrainingJob = {
       id: jobId,
       orgId,
       userId,
+      projectId,
       name: request.name ?? `${jobSpec.baseModel.modelName} @ ${new Date().toLocaleString()}`,
       status: 'queued',
       method: (jobSpec.customization.method as TrainingJob['method']) ?? 'lora',
       datasetUri,
+      datasetKey,
       outputUri: jobSpec.artifacts.outputUri ?? datasetUri,
       jobSpec,
       clusterId: cluster.id,
@@ -239,6 +264,42 @@ export class TrainingService {
     });
   }
 
+  async cancelJob(orgId: string, jobId: string, userId: string, role: OrgRole, isGlobalAdmin: boolean) {
+    const job = await this.getJob(orgId, jobId, userId, role, isGlobalAdmin);
+    if (!job) {
+      return undefined;
+    }
+
+    return this.mutate(jobId, current => {
+      const message = 'Cancelled by workspace user';
+      return {
+        ...current,
+        status: 'cancelled',
+        logs: [...(current.logs ?? []), message],
+        updatedAt: new Date().toISOString(),
+        statusHistory: [
+          ...(current.statusHistory ?? []),
+          { status: 'cancelled', at: new Date().toISOString(), message }
+        ]
+      };
+    });
+  }
+
+  async deleteJob(orgId: string, jobId: string, userId: string, role: OrgRole, isGlobalAdmin: boolean) {
+    const job = await this.getJob(orgId, jobId, userId, role, isGlobalAdmin);
+    if (!job) {
+      return false;
+    }
+
+    const collection = await this.jobsCollection();
+    if (collection) {
+      await collection.deleteOne({ id: jobId });
+    } else {
+      this.memoryJobs.delete(jobId);
+    }
+    return true;
+  }
+
   private buildExternalPayload(job: TrainingJob) {
     const spec = job.jobSpec;
     return {
@@ -276,7 +337,8 @@ export class TrainingService {
       artifacts: {
         log_uri: spec.artifacts.logUri,
         status_stream_url: spec.artifacts.statusStreamUrl,
-        output_uri: spec.artifacts.outputUri
+        output_uri: spec.artifacts.outputUri,
+        auth: spec.artifacts.auth
       },
       tuning_parameters: transformKeys(spec.tuningParameters),
       callbacks: spec.callbacks
@@ -304,7 +366,12 @@ export class TrainingService {
       'Content-Type': 'application/json'
     };
     if (cluster.apiToken) {
-      headers.Authorization = `Bearer ${cluster.apiToken}`;
+      const headerName = cluster.metadata?.authHeaderName?.trim() || 'Authorization';
+      if (headerName.toLowerCase() === 'authorization' && !/^bearer\s+/i.test(cluster.apiToken)) {
+        headers.Authorization = `Bearer ${cluster.apiToken}`;
+      } else {
+        headers[headerName] = cluster.apiToken;
+      }
     }
 
     const res = await fetch(url, {

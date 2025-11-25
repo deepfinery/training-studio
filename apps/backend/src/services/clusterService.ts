@@ -97,6 +97,18 @@ class ClusterService {
     return normalizeCluster(doc);
   }
 
+  async remove(orgId: string, clusterId: string): Promise<void> {
+    const collection = await this.collection();
+    const doc = await collection.findOne({ orgId, id: clusterId });
+    if (!doc) {
+      throw new Error('Cluster not found');
+    }
+    if (doc.locked) {
+      throw new Error('Cluster is locked and cannot be removed');
+    }
+    await collection.deleteOne({ orgId, id: clusterId });
+  }
+
   async ensureDefaultCluster(org: Org): Promise<Cluster | null> {
     const collection = await this.collection();
     const existing = await collection.findOne({ orgId: org.id, ownedBy: 'platform' });

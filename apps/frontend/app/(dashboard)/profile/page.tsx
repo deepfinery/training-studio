@@ -106,68 +106,76 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-6">
-      <header className="glass-panel rounded-3xl border border-white/5 p-6">
-        <p className="text-sm uppercase tracking-[0.35em] text-brand-200">Profile</p>
-        <h1 className="text-3xl font-semibold text-white">Account overview</h1>
-        <div className="flex items-center gap-3">
-          <p className="text-slate-300">Manage your identity, security, and workspace preferences.</p>
-          {profile?.role && <span className="rounded-full border border-white/10 px-3 py-0.5 text-xs uppercase tracking-wide text-slate-200">{profile.role}</span>}
+      <header className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-blue-500">Profile</p>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-3xl font-semibold text-slate-900">Account overview</h1>
+            <p className="text-slate-500">Manage your identity, security, and workspace preferences.</p>
+          </div>
+          {profile?.role && (
+            <span className="rounded-full bg-slate-100 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
+              {profile.role}
+            </span>
+          )}
         </div>
       </header>
       <div className="grid gap-6 lg:grid-cols-2">
-        <form className="glass-panel rounded-3xl border border-white/5 p-6" onSubmit={handleSubmit}>
-          <h2 className="text-xl font-semibold text-white">Personal information</h2>
-          <div className="mt-4 space-y-4 text-sm text-slate-300">
-            <label>
+        <form className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm" onSubmit={handleSubmit}>
+          <h2 className="text-xl font-semibold text-slate-900">Personal information</h2>
+          <div className="mt-4 space-y-4 text-sm text-slate-700">
+            <label className="block">
               Full name
               <input
                 type="text"
                 value={form.name}
                 onChange={handleChange('name')}
-                className="mt-1 w-full rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-3 text-white"
+                className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900"
               />
             </label>
-            <label>
+            <label className="block">
               Email
               <input
                 type="email"
                 value={form.email}
                 readOnly
-                className="mt-1 w-full rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-3 text-white/70"
+                className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-500"
               />
             </label>
-            <label>
+            <label className="block">
               Role
-              <input
-                type="text"
-                value={form.role}
-                onChange={handleChange('role')}
-                className="mt-1 w-full rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-3 text-white"
-              />
+              <select
+                value={form.role || 'standard'}
+                onChange={event => setForm(prev => ({ ...prev, role: event.target.value }))}
+                className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900"
+              >
+                <option value="admin">Admin</option>
+                <option value="standard">Standard</option>
+              </select>
             </label>
-            <label>
+            <label className="block">
               Company
               <input
                 type="text"
                 value={form.company}
                 onChange={handleChange('company')}
-                className="mt-1 w-full rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-3 text-white"
+                className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900"
               />
             </label>
-            <label>
+            <label className="block">
               Phone
               <input
                 type="tel"
                 value={form.phone}
                 onChange={handleChange('phone')}
-                className="mt-1 w-full rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-3 text-white"
+                className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900"
               />
             </label>
           </div>
           <div className="mt-5 flex gap-3">
             <button
               type="button"
-              className="flex-1 rounded-2xl border border-white/10 px-4 py-2 text-sm text-slate-200"
+              className="flex-1 rounded-md border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-blue-400 hover:text-blue-600"
               onClick={() => {
                 if (profile) {
                   setForm({
@@ -185,55 +193,55 @@ export default function ProfilePage() {
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 rounded-2xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-70"
+              className="flex-1 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-70"
             >
               {saving ? 'Saving…' : 'Save changes'}
             </button>
           </div>
           {status && (
-            <p className={`mt-3 text-sm ${statusTone === 'error' ? 'text-rose-200' : 'text-emerald-200'}`}>{status}</p>
+            <p className={`mt-3 text-sm ${statusTone === 'error' ? 'text-rose-600' : 'text-emerald-600'}`}>{status}</p>
           )}
         </form>
         <div className="space-y-6">
-          <article id="security" className="glass-panel rounded-3xl border border-white/5 p-6">
-            <h3 className="text-lg font-semibold text-white">Security</h3>
-            <ul className="mt-4 space-y-3 text-sm text-slate-300">
+          <article id="security" className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-slate-900">Security</h3>
+            <ul className="mt-4 space-y-3 text-sm text-slate-600">
               <li className="flex items-center justify-between">
-                Email verified <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs text-emerald-200">Yes</span>
+                Email verified <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Yes</span>
               </li>
               <li className="flex items-center justify-between">
                 Last profile update <span>{lastUpdated || '—'}</span>
               </li>
             </ul>
-            <form className="mt-5 space-y-3 text-sm text-slate-300" onSubmit={handlePasswordChange}>
+            <form className="mt-5 space-y-3 text-sm text-slate-700" onSubmit={handlePasswordChange}>
               <div className="grid gap-3">
-                <label>
+                <label className="block">
                   Current password
                   <input
                     type="password"
                     value={passwords.current}
                     onChange={event => setPasswords(prev => ({ ...prev, current: event.target.value }))}
-                    className="mt-1 w-full rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-3 text-white"
+                    className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900"
                     required
                   />
                 </label>
-                <label>
+                <label className="block">
                   New password
                   <input
                     type="password"
                     value={passwords.next}
                     onChange={event => setPasswords(prev => ({ ...prev, next: event.target.value }))}
-                    className="mt-1 w-full rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-3 text-white"
+                    className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900"
                     required
                   />
                 </label>
-                <label>
+                <label className="block">
                   Confirm new password
                   <input
                     type="password"
                     value={passwords.confirm}
                     onChange={event => setPasswords(prev => ({ ...prev, confirm: event.target.value }))}
-                    className="mt-1 w-full rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-3 text-white"
+                    className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900"
                     required
                   />
                 </label>
@@ -241,19 +249,19 @@ export default function ProfilePage() {
               <button
                 type="submit"
                 disabled={passwordBusy}
-                className="w-full rounded-2xl border border-white/10 px-4 py-2 text-sm text-slate-200 disabled:opacity-70"
+                className="w-full rounded-md border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-blue-400 hover:text-blue-600 disabled:opacity-70"
               >
                 {passwordBusy ? 'Updating…' : 'Update password'}
               </button>
               {passwordStatus && (
-                <p className={`text-sm ${passwordTone === 'error' ? 'text-rose-200' : 'text-emerald-200'}`}>{passwordStatus}</p>
+                <p className={`text-sm ${passwordTone === 'error' ? 'text-rose-600' : 'text-emerald-600'}`}>{passwordStatus}</p>
               )}
             </form>
           </article>
-          <article className="glass-panel rounded-3xl border border-white/5 p-6">
-            <h3 className="text-lg font-semibold text-white">API tokens</h3>
-            <p className="text-sm text-slate-400">Use tokens to automate dataset uploads and training triggers.</p>
-            <button className="mt-4 w-full rounded-2xl border border-white/10 px-4 py-2 text-sm text-slate-200">
+          <article id="tokens" className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-slate-900">API tokens</h3>
+            <p className="text-sm text-slate-600">Use tokens to automate dataset uploads and training triggers.</p>
+            <button className="mt-4 w-full rounded-md border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-blue-400 hover:text-blue-600">
               Generate new token
             </button>
           </article>

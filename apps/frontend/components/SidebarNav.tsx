@@ -8,7 +8,8 @@ import { navTree, NavNode } from '../lib/navigation';
 function NavBranch({ node, depth, activePath }: { node: NavNode; depth: number; activePath: string }) {
   if (!node.children || node.children.length === 0) {
     if (!node.href) return null;
-    const active = activePath === node.href;
+    const normalizedHref = node.href.split('#')[0];
+    const active = activePath === normalizedHref;
     return (
       <Link
         key={node.href}
@@ -18,6 +19,7 @@ function NavBranch({ node, depth, activePath }: { node: NavNode; depth: number; 
           active ? 'bg-white/15 text-white' : 'text-slate-300 hover:bg-white/5 hover:text-white',
           depth > 1 && 'ml-4'
         )}
+        aria-current={active ? 'page' : undefined}
       >
         <span className="inline-flex items-center gap-3">
           {node.icon && <node.icon className="h-4 w-4" />}
@@ -46,6 +48,7 @@ function NavBranch({ node, depth, activePath }: { node: NavNode; depth: number; 
 
 export function SidebarNav() {
   const pathname = usePathname() ?? '';
+  const activePath = pathname.split('#')[0];
 
   return (
     <aside className="hidden w-72 flex-shrink-0 flex-col border-r border-slate-800 bg-slate-950 px-6 py-8 text-sm text-slate-200 lg:flex">
@@ -56,7 +59,7 @@ export function SidebarNav() {
       </div>
       <nav className="space-y-6">
         {navTree.map(section => (
-          <NavBranch key={section.title} node={section} depth={0} activePath={pathname} />
+          <NavBranch key={section.title} node={section} depth={0} activePath={activePath} />
         ))}
       </nav>
       <div className="mt-auto space-y-3 rounded-lg border border-white/10 bg-slate-900/70 p-4 text-xs text-slate-300">

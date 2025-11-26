@@ -6,6 +6,7 @@ export interface TrainerJobSpec {
     modelName: string;
     revision?: string;
     authToken?: string;
+    huggingfaceToken?: string;
     weightsUrl?: string | null;
   };
   customization: {
@@ -123,6 +124,13 @@ export interface IngestionRecord {
   tags?: string[];
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface TrainingResultFile {
+  key: string;
+  size: number;
+  lastModified?: string;
+  downloadUrl: string;
 }
 
 export interface ProjectRecord {
@@ -527,11 +535,15 @@ export interface OrgContext {
     defaultClusterId?: string;
     promoCredits: number;
     freeJobsConsumed: number;
+    huggingfaceToken?: string;
   };
   membership?: {
     role: 'admin' | 'standard';
   };
   isGlobalAdmin: boolean;
+  orgSecrets?: {
+    hasHuggingfaceToken?: boolean;
+  };
 }
 
 export async function fetchOrgContext(): Promise<OrgContext> {
@@ -579,7 +591,7 @@ export async function setDefaultCluster(clusterId: string) {
   return parseResponse<{ org: OrgContext['org'] }>(res);
 }
 
-export async function updateOrgProfile(body: { name?: string; slug?: string }) {
+export async function updateOrgProfile(body: { name?: string; slug?: string; huggingfaceToken?: string | null }) {
   const res = await fetch(apiUrl('/api/org/profile'), {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
@@ -614,6 +626,16 @@ export interface BillingOverview {
 export async function fetchBillingOverview(): Promise<BillingOverview> {
   const res = await fetch(apiUrl('/api/billing/overview'), { headers: { ...authHeaders() }, cache: 'no-store' });
   return parseResponse<BillingOverview>(res);
+}
+
+export async function fetchTrainingResults(projectId: string): Promise<TrainingResultFile[]> {
+  const params = new URLSearchParams({ projectId });
+  const res = await fetch(apiUrl(`/api/results?${params.toString()}`), {
+    headers: { ...authHeaders() },
+    cache: 'no-store'
+  });
+  const payload = await parseResponse<{ files: TrainingResultFile[] }>(res);
+  return payload.files ?? [];
 }
 
 export async function createSetupIntent() {

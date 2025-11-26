@@ -9,11 +9,20 @@ const router = Router();
 
 router.use(requireAuth, withOrgContext);
 
+function sanitizeOrg(org?: import('../types/org').Org | null) {
+  if (!org) return org;
+  const { huggingfaceToken, ...rest } = org;
+  return rest;
+}
+
 router.get('/context', (req, res) => {
   res.json({
-    org: req.org,
+    org: sanitizeOrg(req.org),
     membership: req.membership,
-    isGlobalAdmin: req.isGlobalAdmin ?? false
+    isGlobalAdmin: req.isGlobalAdmin ?? false,
+    orgSecrets: {
+      hasHuggingfaceToken: Boolean(req.org?.huggingfaceToken)
+    }
   });
 });
 
@@ -25,7 +34,8 @@ router.put('/profile', requireOrgAdmin, async (req, res) => {
       .min(3)
       .max(64)
       .regex(/^[a-z0-9-]+$/i)
-      .optional()
+      .optional(),
+    huggingfaceToken: z.string().min(8).max(200).optional().or(z.literal('')).or(z.null())
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) {
@@ -34,7 +44,12 @@ router.put('/profile', requireOrgAdmin, async (req, res) => {
 
   try {
     const updated = await orgService.updateProfile(req.org!.id, parsed.data);
-    res.json({ org: updated });
+    res.json({
+      org: sanitizeOrg(updated),
+      orgSecrets: {
+        hasHuggingfaceToken: Boolean(updated.huggingfaceToken)
+      }
+    });
   } catch (error) {
     const status = error instanceof Error && error.message === 'Slug already in use' ? 409 : 500;
     res.status(status).json({ message: error instanceof Error ? error.message : 'Unable to update organization' });

@@ -70,6 +70,15 @@ class BillingService {
   }
 
   async planJobCharge(org: Org, cluster: Cluster): Promise<BillingPlan> {
+    if (!stripeClient) {
+      return {
+        mode: 'customer-free-tier',
+        amountUsd: 0,
+        freeTierIncrement: 1,
+        requiresCharge: false
+      };
+    }
+
     await this.ensureCustomer(org);
     await this.requirePaymentMethod(org);
 

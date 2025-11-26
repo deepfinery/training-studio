@@ -121,9 +121,9 @@ export async function deleteProject(userId: string, projectId: string) {
     throw new ProjectServiceError('Invalid project id', 404);
   }
   const collection = await getCollection<ProjectDocument>('projects');
-  const result = await collection.findOneAndDelete({ _id: new ObjectId(projectId), userId });
-  if (!result.value) {
+  const deleted = await collection.findOneAndDelete({ _id: new ObjectId(projectId), userId });
+  if (!deleted) {
     throw new ProjectServiceError('Project not found', 404);
   }
-  return normalize(result.value);
+  return normalize(deleted);
 }

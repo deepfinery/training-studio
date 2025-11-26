@@ -36,6 +36,8 @@ export function TrainingConfigurator() {
   const [baseModel, setBaseModel] = useState(baseModelOptions[0]);
   const [datasetUri, setDatasetUri] = useState('s3://deepfinery-datasets/example.jsonl');
   const [datasetKey, setDatasetKey] = useState<string | undefined>();
+  const [datasetFormat, setDatasetFormat] = useState('auto');
+  const [datasetRoleArn, setDatasetRoleArn] = useState('');
   const [jobName, setJobName] = useState('LoRA refinement');
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -43,6 +45,7 @@ export function TrainingConfigurator() {
   const [gpus, setGpus] = useState(4);
   const [gpuType, setGpuType] = useState('A100');
   const [maxDuration, setMaxDuration] = useState(720);
+  const HF_PLACEHOLDER = '********';
   const { activeProject } = useProjects();
   const projectId = activeProject?.id;
   const { data: files } = useSWR<FileRecord[]>(
@@ -52,18 +55,36 @@ export function TrainingConfigurator() {
   );
   const { data: clusters } = useSWR<ClusterSummary[]>('clusters', fetchClusters, { refreshInterval: 30000 });
   const { data: orgContext } = useSWR('org-context', fetchOrgContext, { refreshInterval: 60000 });
+  const hasHfToken = orgContext?.orgSecrets?.hasHuggingfaceToken ?? false;
+  const [hfTokenInput, setHfTokenInput] = useState('');
 
   useEffect(() => {
     setDatasetKey(undefined);
   }, [projectId]);
 
+  const inferDatasetFormat = (value: string) => {
+    const lower = value.toLowerCase();
+    if (lower.endsWith('.jsonl')) return 'jsonl';
+    if (lower.endsWith('.csv')) return 'csv';
+    if (lower.endsWith('.parquet')) return 'parquet';
+    return 'auto';
+  };
+
+  const updateDatasetFromFile = (file: FileRecord) => {
+    setDatasetKey(file.key);
+    setDatasetUri(`s3://${file.bucket}/${file.key}`);
+    setDatasetFormat(inferDatasetFormat(file.originalName));
+  };
+
   useEffect(() => {
     if (files && files.length > 0 && !datasetKey) {
-      const latest = files[0];
-      setDatasetKey(latest.key);
-      setDatasetUri(`s3://${latest.bucket}/${latest.key}`);
+      updateDatasetFromFile(files[0]);
     }
   }, [files, datasetKey]);
+
+  useEffect(() => {
+    setHfTokenInput(hasHfToken ? HF_PLACEHOLDER : '');
+  }, [hasHfToken]);
 
   const maxLayers = baseModel.maxLayers;
 
@@ -128,11 +149,11 @@ export function TrainingConfigurator() {
         datasets: [
           {
             source: datasetUri,
-            format: datasetUri.endsWith('.jsonl') ? 'jsonl' : 'auto'
+            format: datasetFormat || 'auto',
+            auth: datasetRoleArn ? { role_arn: datasetRoleArn } : undefined
           }
         ],
         artifacts: {
-          logUri: `s3://deepfinery-logs/${datasetKey ?? 'latest'}`,
           outputUri: `s3://deepfinery-trained-models/${jobName
             .toLowerCase()
             .replace(/[^a-z0-9-]/g, '-')}-${Date.now()}`
@@ -146,6 +167,11 @@ export function TrainingConfigurator() {
           max_sequence_length: 4096
         }
       };
+
+      if (hfTokenInput && hfTokenInput !== HF_PLACEHOLDER) {
+        spec.baseModel.authToken = hfTokenInput;
+        spec.baseModel.huggingfaceToken = hfTokenInput;
+      }
 
       await createJob({
         name: jobName,
@@ -223,7 +249,10 @@ export function TrainingConfigurator() {
           <input
             type="text"
             value={datasetUri}
-            onChange={event => setDatasetUri(event.target.value)}
+            onChange={event => {
+              setDatasetUri(event.target.value);
+              setDatasetFormat(inferDatasetFormat(event.target.value));
+            }}
             className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
           />
         </label>
@@ -233,11 +262,9 @@ export function TrainingConfigurator() {
             <select
               value={datasetKey ?? ''}
               onChange={event => {
-                const key = event.target.value;
-                setDatasetKey(key);
-                const file = files.find(f => f.key === key);
+                const file = files.find(f => f.key === event.target.value);
                 if (file) {
-                  setDatasetUri(`s3://${file.bucket}/${file.key}`);
+                  updateDatasetFromFile(file);
                 }
               }}
               className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
@@ -252,6 +279,34 @@ export function TrainingConfigurator() {
           </label>
         )}
         {!projectId && <p className="text-xs text-amber-600">Select or create a project to surface recent dataset uploads here.</p>}
+        <label className="text-sm text-slate-700">
+          Dataset format
+          <select
+            value={datasetFormat}
+            onChange={event => setDatasetFormat(event.target.value)}
+            className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
+          >
+            <option value="auto">Auto detect</option>
+            <option value="jsonl">JSONL</option>
+            <option value="csv">CSV</option>
+            <option value="parquet">Parquet</option>
+          </select>
+        </label>
+        <label className="text-sm text-slate-700">
+          Dataset IAM role (optional)
+          <input
+            type="text"
+            value={datasetRoleArn}
+            onChange={event => setDatasetRoleArn(event.target.value)}
+            placeholder="arn:aws:iam::123:role/FineTune"
+            className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
+          />
+          <p className="text-xs text-slate-500">Included as datasets[].auth.role_arn so the trainer can assume the right permissions.</p>
+        </label>
+        <p className="text-xs text-slate-500">
+          Recommended layout: <code className="rounded bg-slate-100 px-1">s3://deepfinery-training-data-*/users/&lt;userId&gt;/projects/&lt;projectId&gt;/ingestion/&lt;file&gt;</code>. Logs/results are written back
+          under the same project prefix.
+        </p>
         <label className="text-sm text-slate-700">
           Base model
           <select
@@ -268,6 +323,17 @@ export function TrainingConfigurator() {
               </option>
             ))}
           </select>
+        </label>
+        <label className="text-sm text-slate-700">
+          Hugging Face token
+          <input
+            type="password"
+            value={hfTokenInput}
+            onChange={event => setHfTokenInput(event.target.value)}
+            placeholder={hasHfToken ? HF_PLACEHOLDER : 'hf_xxx'}
+            className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
+          />
+          <p className="text-xs text-slate-500">Leave blank to reuse the workspace token.</p>
         </label>
 
         <div className="grid gap-3 md:grid-cols-3">

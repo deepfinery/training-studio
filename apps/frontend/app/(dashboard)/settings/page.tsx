@@ -59,6 +59,9 @@ export default function SettingsPage() {
   const [orgForm, setOrgForm] = useState({ name: '', slug: '' });
   const [orgStatus, setOrgStatus] = useState<string | null>(null);
   const [updatingOrg, setUpdatingOrg] = useState(false);
+  const HF_PLACEHOLDER = '********';
+  const hasHfToken = orgContext?.orgSecrets?.hasHuggingfaceToken ?? false;
+  const [hfTokenInput, setHfTokenInput] = useState('');
 
   const currentDefault = orgContext?.org?.defaultClusterId;
   const isAdmin = (orgContext?.membership?.role ?? 'standard') === 'admin' || orgContext?.isGlobalAdmin;
@@ -67,7 +70,8 @@ export default function SettingsPage() {
     if (orgContext?.org) {
       setOrgForm({ name: orgContext.org.name ?? '', slug: orgContext.org.slug ?? '' });
     }
-  }, [orgContext?.org?.name, orgContext?.org?.slug]);
+    setHfTokenInput(hasHfToken ? HF_PLACEHOLDER : '');
+  }, [orgContext?.org?.name, orgContext?.org?.slug, hasHfToken]);
 
   const handleToggle = (key: string) => {
     setToggles(prev => ({ ...prev, [key]: !prev[key] }));
@@ -122,6 +126,10 @@ export default function SettingsPage() {
     setOrgForm(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleHfTokenChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setHfTokenInput(event.target.value);
+  };
+
   const handleDeleteCluster = async (clusterId: string, locked?: boolean) => {
     if (locked) {
       setClusterTableStatus('Locked clusters cannot be removed.');
@@ -144,7 +152,18 @@ export default function SettingsPage() {
     setOrgStatus('Saving organization…');
     setUpdatingOrg(true);
     try {
-      await updateOrgProfile({ name: orgForm.name, slug: orgForm.slug });
+      const payload: { name?: string; slug?: string; huggingfaceToken?: string | null } = {
+        name: orgForm.name,
+        slug: orgForm.slug
+      };
+      if (hfTokenInput === HF_PLACEHOLDER) {
+        // no change
+      } else if (hfTokenInput.trim().length === 0 && hasHfToken) {
+        payload.huggingfaceToken = null;
+      } else if (hfTokenInput.trim().length > 0) {
+        payload.huggingfaceToken = hfTokenInput.trim();
+      }
+      await updateOrgProfile(payload);
       mutate('org-context');
       setOrgStatus('Organization updated.');
     } catch (error) {
@@ -190,6 +209,27 @@ export default function SettingsPage() {
               disabled={!isAdmin}
               className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 disabled:bg-slate-50"
             />
+          </label>
+          <label className="text-sm text-slate-700 md:col-span-2">
+            Hugging Face token
+            <input
+              type="password"
+              value={hfTokenInput}
+              onChange={handleHfTokenChange}
+              disabled={!isAdmin}
+              placeholder={hasHfToken ? HF_PLACEHOLDER : 'hf_xxx'}
+              className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 disabled:bg-slate-50"
+            />
+            <p className="mt-1 text-xs text-slate-500">Used for pulling gated Hugging Face models during training.</p>
+            {isAdmin && hasHfToken && (
+              <button
+                type="button"
+                onClick={() => setHfTokenInput('')}
+                className="mt-2 text-xs font-semibold text-rose-600 hover:text-rose-500"
+              >
+                Clear saved token
+              </button>
+            )}
           </label>
           <div className="md:col-span-2 flex flex-wrap items-center gap-3">
             <button

@@ -4,6 +4,8 @@ import {
   CreateMultipartUploadCommand,
   DeleteObjectCommand,
   DeleteObjectsCommand,
+  GetObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   UploadPartCommand
 } from '@aws-sdk/client-s3';
@@ -415,4 +417,43 @@ export async function deleteFilesForProject(userId: string, projectId: string) {
   );
 
   await collection.deleteMany({ userId, projectId });
+}
+
+export async function listTrainingResults(userId: string, projectId: string) {
+  if (!env.S3_DATA_BUCKET) {
+    throw new Error('S3 data bucket not configured');
+  }
+  const prefix = `users/${userId}/projects/${projectId}/results/`;
+  const command = new ListObjectsV2Command({
+    Bucket: env.S3_DATA_BUCKET,
+    Prefix: prefix
+  });
+  const response = await s3.send(command);
+  const contents = response.Contents ?? [];
+  const files = contents.filter(item => item.Key && !item.Key.endsWith('/'));
+  const mapped = await Promise.all(
+    files.map(async item => {
+      const key = item.Key!;
+      const url = await getSignedUrl(
+        s3,
+        new GetObjectCommand({
+          Bucket: env.S3_DATA_BUCKET,
+          Key: key
+        }),
+        { expiresIn: 900 }
+      );
+      return {
+        key,
+        size: item.Size ?? 0,
+        lastModified:
+          item.LastModified instanceof Date
+            ? item.LastModified.toISOString()
+            : typeof item.LastModified === 'string'
+              ? item.LastModified
+              : undefined,
+        downloadUrl: url
+      };
+    })
+  );
+  return mapped;
 }

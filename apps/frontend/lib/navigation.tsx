@@ -3,6 +3,7 @@ import {
   BookText,
   BrainCircuit,
   Building2,
+  CloudDownload,
   CreditCard,
   FolderKanban,
   GaugeCircle,
@@ -34,6 +35,7 @@ export const navTree: NavNode[] = [
       { title: 'Datasets', href: '/data', icon: TableProperties },
       { title: 'Workflows', href: '/workflows', icon: BookText },
       { title: 'Training Hub', href: '/training', icon: BrainCircuit, badge: 'live' },
+      { title: 'Training Results', href: '/training/results', icon: CloudDownload },
       { title: 'Serve & Reinforce', href: '/deploy', icon: Rocket, badge: 'soon' }
     ]
   },

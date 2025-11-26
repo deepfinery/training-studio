@@ -5,6 +5,7 @@ import { withOrgContext } from '../middleware/orgMiddleware';
 import { billingService } from '../services/billingService';
 import { clusterService } from '../services/clusterService';
 import { trainingService } from '../services/trainingService';
+import { TrainingJob } from '../types/training';
 import { getProject } from '../services/projectService';
 
 const router = Router();
@@ -16,6 +17,7 @@ const trainerSpecSchema = z.object({
     modelName: z.string(),
     revision: z.string().optional(),
     authToken: z.string().optional(),
+    huggingfaceToken: z.string().optional(),
     weightsUrl: z.string().optional().or(z.null())
   }),
   customization: z.object({
@@ -71,11 +73,16 @@ const createJobSchema = z.object({
   spec: trainerSpecSchema
 });
 
+function sanitizeJob(job: TrainingJob) {
+  const { callbackToken, ...rest } = job;
+  return rest;
+}
+
 router.use(requireAuth, withOrgContext);
 
 router.get('/', async (req, res) => {
   const jobs = await trainingService.listJobs(req.org!.id, req.user!.id, req.membership!.role, req.isGlobalAdmin ?? false);
-  res.json({ jobs });
+  res.json({ jobs: jobs.map(sanitizeJob) });
 });
 
 router.get('/:jobId', async (req, res) => {
@@ -84,7 +91,7 @@ router.get('/:jobId', async (req, res) => {
     return res.status(404).json({ message: 'Job not found' });
   }
 
-  res.json(job);
+  res.json(sanitizeJob(job));
 });
 
 router.post('/', async (req, res) => {
@@ -103,6 +110,13 @@ router.post('/', async (req, res) => {
     return res.status(404).json({ message: 'Project not found' });
   }
 
+  if (!parsed.data.spec.baseModel.authToken && req.org?.huggingfaceToken) {
+    parsed.data.spec.baseModel.authToken = req.org.huggingfaceToken;
+  }
+  if (!parsed.data.spec.baseModel.huggingfaceToken && req.org?.huggingfaceToken) {
+    parsed.data.spec.baseModel.huggingfaceToken = req.org.huggingfaceToken;
+  }
+
   let jobId: string | undefined;
   try {
     const plan = await billingService.planJobCharge(req.org!, cluster);
@@ -117,7 +131,7 @@ router.post('/', async (req, res) => {
     await trainingService.dispatchToCluster(job, cluster);
     const billing = await billingService.commitJobCharge(req.org!, job, plan);
     const updated = await trainingService.attachBilling(job.id, billing);
-    res.status(201).json(updated ?? job);
+    res.status(201).json(updated ? sanitizeJob(updated) : sanitizeJob(job));
   } catch (error) {
     if (jobId) {
       await trainingService.markJobFailed(jobId, error instanceof Error ? error.message : 'Dispatch failed');
@@ -149,7 +163,7 @@ router.post('/:jobId/status', async (req, res) => {
     return res.status(404).json({ message: 'Job not found' });
   }
 
-  res.json(updated);
+  res.json(sanitizeJob(updated));
 });
 
 router.post('/:jobId/cancel', async (req, res) => {
@@ -193,7 +207,7 @@ trainingWebhookRouter.post('/webhooks/:jobId', async (req, res) => {
   const tokenHeader = req.headers['x-cluster-token'] ?? req.headers.authorization;
   const tokenValue = Array.isArray(tokenHeader) ? tokenHeader[0] : tokenHeader;
   if (!tokenValue) {
-    return res.status(401).json({ message: 'Missing cluster token' });
+    return res.status(401).json({ message: 'Missing authorization token' });
   }
   const token = tokenValue.replace(/^Bearer\s+/i, '').trim();
 
@@ -203,8 +217,10 @@ trainingWebhookRouter.post('/webhooks/:jobId', async (req, res) => {
   }
 
   const cluster = await clusterService.findById(job.clusterId);
-  if (!cluster || !cluster.apiToken || cluster.apiToken !== token) {
-    return res.status(403).json({ message: 'Invalid cluster token' });
+  const validClusterToken = cluster?.apiToken && cluster.apiToken === token;
+  const validCallbackToken = job.callbackToken && job.callbackToken === token;
+  if (!validClusterToken && !validCallbackToken) {
+    return res.status(403).json({ message: 'Invalid callback token' });
   }
 
   const parsed = schema.safeParse(req.body);
@@ -213,5 +229,5 @@ trainingWebhookRouter.post('/webhooks/:jobId', async (req, res) => {
   }
 
   const updated = await trainingService.updateJobStatusFromCluster(job.id, parsed.data.status, parsed.data.log);
-  res.json(updated);
+  res.json(sanitizeJob(updated));
 });

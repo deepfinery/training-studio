@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto';
 import { ObjectId } from 'mongodb';
 import { v4 as uuid } from 'uuid';
 import { getCollection } from '../config/database';
@@ -95,7 +96,12 @@ export class TrainingService {
     };
   }
 
-  private buildJobSpec(jobId: string, spec: TrainerJobSpec, cluster: Cluster): TrainerJobSpec {
+  private buildJobSpec(
+    jobId: string,
+    spec: TrainerJobSpec,
+    cluster: Cluster,
+    params: { userId: string; projectId: string; callbackToken: string }
+  ) {
     const callbackUrl = `${env.PUBLIC_API_BASE_URL.replace(/\/$/, '')}/api/training/webhooks/${jobId}`;
     const s3Auth = this.buildS3Auth(cluster);
     const datasets = spec.datasets.map(dataset => ({
@@ -103,22 +109,23 @@ export class TrainingService {
       auth: dataset.auth ?? s3Auth
     }));
     const artifactAuth = spec.artifacts.auth ?? s3Auth;
+    const basePrefix = `s3://${env.S3_DATA_BUCKET}/users/${params.userId}/projects/${params.projectId}`;
+    const defaultLogUri = `${basePrefix}/logs/${jobId}/`;
+    const defaultOutputUri = `${basePrefix}/results/${jobId}/`;
     return {
       ...spec,
       jobId: spec.jobId ?? jobId,
       artifacts: {
         ...spec.artifacts,
         statusStreamUrl: callbackUrl,
-        logUri: spec.artifacts.logUri ?? spec.artifacts.outputUri,
-        outputUri:
-          spec.artifacts.outputUri ??
-          `s3://${env.S3_MODEL_BUCKET}/${cluster.orgId}/${jobId}/model-artifacts`,
+        logUri: spec.artifacts.logUri ?? defaultLogUri,
+        outputUri: spec.artifacts.outputUri ?? defaultOutputUri,
         ...(artifactAuth ? { auth: artifactAuth } : {})
       },
       callbacks: {
         ...(spec.callbacks ?? {}),
         webhookUrl: callbackUrl,
-        authHeader: spec.callbacks?.authHeader ?? (cluster.apiToken ? `Bearer ${cluster.apiToken}` : undefined)
+        authHeader: `Bearer ${params.callbackToken}`
       },
       datasets
     };
@@ -138,7 +145,8 @@ export class TrainingService {
     const { orgId, userId, projectId, request, cluster } = params;
     const now = new Date().toISOString();
     const jobId = uuid();
-    const jobSpec = this.buildJobSpec(jobId, request.spec, cluster);
+    const callbackToken = randomBytes(32).toString('hex');
+    const jobSpec = this.buildJobSpec(jobId, request.spec, cluster, { userId, projectId, callbackToken });
     const datasetUri = this.deriveDatasetUri(jobSpec);
     const datasetKey = datasetUri.startsWith('s3://') ? datasetUri.replace(/^s3:\/\/(?:[^/]+)\//, '') : undefined;
     const job: TrainingJob = {
@@ -157,6 +165,7 @@ export class TrainingService {
       clusterName: cluster.name,
       clusterProvider: cluster.provider,
       clusterKind: cluster.kind,
+      callbackToken,
       statusHistory: [{ status: 'queued', at: now, message: 'Job created' }],
       logs: ['Job created, dispatch pending.'],
       createdAt: now,

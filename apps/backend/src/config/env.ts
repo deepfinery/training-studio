@@ -53,7 +53,11 @@ const envSchema = z.object({
       const parsed = Number(value);
       return Number.isFinite(parsed) && parsed >= 0 ? parsed : 100;
     }),
-  DEFAULT_MANAGED_CLUSTER_URL: z.string().min(1).default('http://localhost:8081'),
+  DEFAULT_MANAGED_CLUSTER_URL: z
+    .string()
+    .optional()
+    .transform(value => (value && value.trim().length > 0 ? value.trim() : undefined))
+    .default('http://localhost:8081'),
   DEFAULT_MANAGED_CLUSTER_TOKEN: z.string().optional().default(''),
   DEFAULT_MANAGED_CLUSTER_PROVIDER: z.enum(['huggingface', 'meta', 'nemo']).default('huggingface'),
   PUBLIC_APP_URL: z.string().min(1).default('http://localhost:3000'),

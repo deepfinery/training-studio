@@ -18,6 +18,7 @@ export interface Org {
   freeJobsConsumed: number;
   defaultClusterId?: string;
   billingAddress?: BillingAddress;
+  huggingfaceToken?: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -12,6 +12,7 @@ import clusterRoutes from './routes/clusterRoutes';
 import billingRoutes from './routes/billingRoutes';
 import orgRoutes from './routes/orgRoutes';
 import projectRoutes from './routes/projectRoutes';
+import resultRoutes from './routes/resultRoutes';
 
 export function createApp() {
   const app = express();
@@ -35,6 +36,7 @@ export function createApp() {
   app.use('/api/ingestions', ingestionRoutes);
   app.use('/api/files', fileRoutes);
   app.use('/api/projects', projectRoutes);
+  app.use('/api/results', resultRoutes);
   app.use('/api/evaluations', evaluationRoutes);
   app.use('/api/history', historyRoutes);
 

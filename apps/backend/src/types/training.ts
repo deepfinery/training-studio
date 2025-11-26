@@ -8,6 +8,7 @@ export interface TrainerBaseModel {
   modelName: string;
   revision?: string;
   authToken?: string;
+  huggingfaceToken?: string;
   weightsUrl?: string | null;
 }
 
@@ -83,6 +84,7 @@ export interface TrainingJob {
   clusterName: string;
   clusterProvider: ClusterProvider;
   clusterKind: ClusterKind;
+  callbackToken?: string;
   billing?: BillingRecord;
   statusHistory: TrainingJobStatusEntry[];
   createdAt: string;

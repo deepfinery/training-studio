@@ -141,7 +141,7 @@ class OrgService {
     return normalized;
   }
 
-  async updateProfile(orgId: string, profile: { name?: string; slug?: string }) {
+  async updateProfile(orgId: string, profile: { name?: string; slug?: string; huggingfaceToken?: string | null }) {
     const patch: Partial<Org> = {};
     if (profile.name) {
       patch.name = profile.name.trim();
@@ -155,6 +155,11 @@ class OrgService {
         throw new Error('Slug already in use');
       }
       patch.slug = nextSlug;
+    }
+
+    if (profile.huggingfaceToken !== undefined) {
+      const trimmed = profile.huggingfaceToken?.trim();
+      patch.huggingfaceToken = trimmed && trimmed.length > 0 ? trimmed : null;
     }
 
     if (Object.keys(patch).length === 0) {

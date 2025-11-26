@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, LogOut, Search, Settings, User } from 'lucide-react';
+import { ChevronDown, LogOut, Menu, Search, Settings, User } from 'lucide-react';
 import { clearTokens, currentUser } from '../lib/auth';
 import { ProjectSelector } from './ProjectSelector';
 
@@ -17,7 +17,11 @@ function initialsFrom(name?: string, email?: string) {
   return `${parts[0]![0] ?? ''}${parts[parts.length - 1]![0] ?? ''}`.toUpperCase();
 }
 
-export function TopBar() {
+interface TopBarProps {
+  onMenuClick?: () => void;
+}
+
+export function TopBar({ onMenuClick }: TopBarProps) {
   const [query, setQuery] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [userLabel, setUserLabel] = useState('Authenticated');
@@ -51,6 +55,16 @@ export function TopBar() {
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
       <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-4 px-6 py-4 lg:flex-nowrap">
+        {onMenuClick && (
+          <button
+            type="button"
+            onClick={onMenuClick}
+            className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-blue-400 lg:hidden"
+            aria-label="Open navigation"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        )}
         <div className="w-full max-w-sm flex-shrink-0">
           <ProjectSelector />
         </div>
